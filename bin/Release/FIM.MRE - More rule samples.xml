@@ -39,8 +39,9 @@
     </Rule>
     <Rule>
       <Name>Deprovision Person ==> AI</Name>
-      <Description>If the user is deleted from Online, the user should be deproved in AI</Description>
+      <Description>If the user is deleted from HR, the user should be deproved in AI</Description>
       <TargetManagementAgentName xsi:type="xsd:string">AI MA</TargetManagementAgentName>
+      <Enabled>false</Enabled>
       <Enabled>false</Enabled>
       <SourceObject>person</SourceObject>
       <TargetObject>Identities</TargetObject>
@@ -49,7 +50,7 @@
       </RenameDnFlow>
       <Conditions>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
-          <Description>User no longer exists in Online</Description>
+          <Description>User no longer exists in HR</Description>
           <MVAttribute>exists910</MVAttribute>
         </ConditionBase>
       </Conditions>
@@ -390,7 +391,7 @@
           <Pattern>^GSP-</Pattern>
         </ConditionBase>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
-          <Description>..and the group no longer exists in Online</Description>
+          <Description>..and the group no longer exists in HR</Description>
           <MVAttribute>exists910</MVAttribute>
         </ConditionBase>
       </Conditions>
@@ -407,7 +408,7 @@
       </RenameDnFlow>
       <Conditions>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
-          <Description>..and the user no longer exists in Online</Description>
+          <Description>..and the user no longer exists in HR</Description>
           <MVAttribute>exists910</MVAttribute>
         </ConditionBase>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
@@ -513,7 +514,7 @@
           <Pattern>^GSP-</Pattern>
         </ConditionBase>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
-          <Description>..and the group no longer exists in Online</Description>
+          <Description>..and the group no longer exists in HR</Description>
           <MVAttribute>exists910</MVAttribute>
         </ConditionBase>
       </Conditions>
@@ -533,7 +534,7 @@
       </RenameDnFlow>
       <Conditions>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
-          <Description>..and the user no longer exists in Online</Description>
+          <Description>..and the user no longer exists in HR</Description>
           <MVAttribute>exists910</MVAttribute>
         </ConditionBase>
         <ConditionBase xsi:type="ConditionAttributeIsNotPresent">

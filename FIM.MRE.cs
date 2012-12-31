@@ -15,7 +15,7 @@
 
 // CONSIDER 
 //  - AN ESCAPEDN IMPLEMENTATION
-//  - AN CONDITIONISTRUE/FALSE for handles isADAccount
+//  - AN CONDITIONISTRUE/FALSE for handling isADAccount booleans
 
 using System;
 using System.Diagnostics;
@@ -667,29 +667,29 @@ namespace Granfeldt
     [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent))]
     public class ConditionBase
     {
-        public string Description = "You can write your own documentation of the condition here";
+        public string Description = "";
     }
 
     public class ConditionMatch : ConditionBase
     {
-        public string MVAttribute = "employeeId";
-        public string Pattern = "MyPattern";
+        public string MVAttribute = "";
+        public string Pattern = "";
     }
 
     public class ConditionNotMatch : ConditionBase
     {
-        public string MVAttribute = "employeeId";
-        public string Pattern = "MyPattern";
+        public string MVAttribute = "";
+        public string Pattern = "";
     }
 
     public class ConditionAttributeIsPresent : ConditionBase
     {
-        public string MVAttribute = "employeeId";
+        public string MVAttribute = "";
     }
 
     public class ConditionAttributeIsNotPresent : ConditionBase
     {
-        public string MVAttribute = "employeeId";
+        public string MVAttribute = "";
     }
 
     #endregion
