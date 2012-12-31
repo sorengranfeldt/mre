@@ -1,4 +1,0 @@
-C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\bin\Release\FIM.MRE - More rule samples.xml
-C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\bin\Release\FIM.MRE.xml
-C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\bin\Release\FIM.MRE.dll
-C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\obj\Release\FIM.MRE.dll
