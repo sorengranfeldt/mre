@@ -1,0 +1,8 @@
+C:\Program Files\Microsoft Forefront Identity Manager\2010\Synchronization Service\Extensions\FIM.MRE - More rule samples.xml
+C:\Program Files\Microsoft Forefront Identity Manager\2010\Synchronization Service\Extensions\FIM.MRE.xml
+C:\Program Files\Microsoft Forefront Identity Manager\2010\Synchronization Service\Extensions\FIM.MRE.dll
+C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\obj\Release\FIM.MRE.dll
+C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\obj\Release\FIM.MRE.csprojResolveAssemblyReference.cache
+C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\bin\Release\FIM.MRE - More rule samples.xml
+C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\bin\Release\FIM.MRE.xml
+C:\Data\Dropbox\Private-Code\FIM-ILM\FIM.MRE\bin\Release\FIM.MRE.dll
