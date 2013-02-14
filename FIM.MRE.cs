@@ -15,10 +15,6 @@
 // February 14, 2013 | Soren Granfeldt
 //  - added ConditionConnectedTo and ConditionNotConnectedTo conditions
 
-// CONSIDER 
-//  - AN ESCAPEDN IMPLEMENTATION
-//  - AN CONDITIONISTRUE/FALSE for handling isADAccount booleans
-
 using System;
 using System.Diagnostics;
 using System.IO;
