@@ -12,6 +12,8 @@
 //  - added option to disable all rules / provisioning
 // December 4, 2012 | Soren Granfeldt
 //  - added ConditionNotMatch condition
+// February 14, 2013 | Soren Granfeldt
+//  - added ConditionConnectedTo and ConditionNotConnectedTo conditions
 
 // CONSIDER 
 //  - AN ESCAPEDN IMPLEMENTATION
@@ -380,6 +382,28 @@ namespace Granfeldt
                             return false;
                         }
                     }
+
+                    if (conditionBase.GetType() == typeof(ConditionNotConnectedTo))
+                    {
+                        ConditionNotConnectedTo condition = (ConditionNotConnectedTo)conditionBase;
+                        ConnectedMA MA = mventry.ConnectedMAs[condition.ManagementAgentName];
+                        if (MA.Connectors.Count > 0)
+                        {
+                            Log(string.Format("Rule failed (Reason: Still connected to {0})", condition.ManagementAgentName), conditionBase.Description);
+                            return false;
+                        }
+                    }
+
+                    if (conditionBase.GetType() == typeof(ConditionConnectedTo))
+                    {
+                        ConditionConnectedTo condition = (ConditionConnectedTo)conditionBase;
+                        ConnectedMA MA = mventry.ConnectedMAs[condition.ManagementAgentName];
+                        if (MA.Connectors.Count < 1)
+                        {
+                            Log(string.Format("Rule failed (Reason: Not connected to {0})", condition.ManagementAgentName), conditionBase.Description);
+                            return false;
+                        }
+                    }
                 }
 
                 // if we get here, all conditions have been met
@@ -664,7 +688,7 @@ namespace Granfeldt
 
     #region ConditionBase
 
-    [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent))]
+    [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent)), XmlInclude(typeof(ConditionConnectedTo)), XmlInclude(typeof(ConditionNotConnectedTo))]
     public class ConditionBase
     {
         public string Description = "";
@@ -690,6 +714,16 @@ namespace Granfeldt
     public class ConditionAttributeIsNotPresent : ConditionBase
     {
         public string MVAttribute = "";
+    }
+
+    public class ConditionConnectedTo : ConditionBase
+    {
+        public string ManagementAgentName = "";
+    }
+
+    public class ConditionNotConnectedTo : ConditionBase
+    {
+        public string ManagementAgentName = "";
     }
 
     #endregion
