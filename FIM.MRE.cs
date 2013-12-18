@@ -14,17 +14,22 @@
 //  - added ConditionNotMatch condition
 // February 14, 2013 | Soren Granfeldt
 //  - added ConditionConnectedTo and ConditionNotConnectedTo conditions
+// December 18, 2013 | Soren Granfeldt
+//  - added conditional-rename rule
+//  - added new conditions (IsPresent and IsNotPresent)
+//  - added suggestions from Niels Rossen
+//      - convert binary to string using BitConverter and additional error handling around existing connectors
 
+using Microsoft.MetadirectoryServices;
+using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Xml;
 using System.Xml.Serialization;
-using Microsoft.MetadirectoryServices;
-using Microsoft.Win32;
-using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace Granfeldt
 {
@@ -116,6 +121,7 @@ namespace Granfeldt
             }
             catch (System.NullReferenceException ex)
             {
+                ex.ToString();
                 // we get here if key og hive doesn't exist which is perfectly okay
             }
             catch (Exception ex)
@@ -150,32 +156,49 @@ namespace Granfeldt
                         {
                             CSEntry csentry = null;
                             ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
-                            if (rule.Action.Equals("provision", StringComparison.OrdinalIgnoreCase))
+
+                            switch (rule.Action.ToLower())
                             {
-                                if (ma.Connectors.Count == 0)
-                                {
-                                    if (this.RuleApply(ma, csentry, mventry, rule))
-                                    {
-                                        this.CreateConnector(ma, csentry, mventry, rule);
-                                    }
-                                }
-                                else
-                                {
-                                    if (ma.Connectors.Count == 1)
+                                case "rename":
+                                    if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.ConditionalRename.Conditions))
                                     {
                                         csentry = ma.Connectors.ByIndex[0];
                                         this.RenameConnector(ma, csentry, mventry, rule);
+                                        this.ConditionalRenameConnector(ma, csentry, mventry, rule);
+                                    }
+                                    break;
+                                case "provision":
+                                    if (ma.Connectors.Count == 0)
+                                    {
+                                        if (ConditionsApply(csentry, mventry, rule.Conditions))
+                                        {
+                                            this.CreateConnector(ma, csentry, mventry, rule);
+                                        }
                                     }
                                     else
                                     {
-                                        Log(new Exception("More than one connector (" + ma.Connectors.Count + ") exists"));
+                                        if (ma.Connectors.Count == 1)
+                                        {
+                                            csentry = ma.Connectors.ByIndex[0];
+                                            this.RenameConnector(ma, csentry, mventry, rule);
+                                            this.ConditionalRenameConnector(ma, csentry, mventry, rule);
+                                        }
+                                        else
+                                        {
+                                            Log(new Exception("More than one connector (" + ma.Connectors.Count + ") exists"));
+                                        }
                                     }
-                                }
-                            }
-                            else if ((rule.Action.Equals("deprovision", StringComparison.OrdinalIgnoreCase) && RuleApply(ma, csentry, mventry, rule)) && (ma.Connectors.Count == 1))
-                            {
-                                csentry = ma.Connectors.ByIndex[0];
-                                this.DeprovisionConnector(ma, csentry, mventry, rule);
+                                    break;
+                                case "deprovision":
+                                    if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.Conditions))
+                                    {
+                                        csentry = ma.Connectors.ByIndex[0];
+                                        this.DeprovisionConnector(ma, csentry, mventry, rule);
+                                    }
+                                    break;
+                                default:
+                                    Log(new Exception("Invalid action specified"));
+                                    break;
                             }
                         }
                         Log("End rule", rule.Name);
@@ -224,6 +247,10 @@ namespace Granfeldt
                 this.SetupInitialValues(csentry, mventry, connectorRule);
                 csentry.CommitNewConnector();
             }
+            catch (ObjectAlreadyExistsException ex)
+            {
+                Log(ex);
+            }
             catch (Exception ex)
             {
                 Log(ex);
@@ -251,11 +278,46 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
+
+        public void ConditionalRenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
+        {
+            try
+            {
+                Log(EntryPointAction.Enter);
+                if (connectorRule.ConditionalRename == null)
+                    return;
+
+                string replacedValue = ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.NewDNValue, mventry);
+                Log("Current DN value", csentry.DN);
+                Log("New DN value", replacedValue);
+                ReferenceValue newdn = ma.CreateDN(replacedValue);
+                if (csentry.DN.ToString().Equals(newdn.ToString()))
+                {
+                    Log("No renaming necessary");
+                }
+                else
+                {
+                    csentry.DN = ma.CreateDN(replacedValue);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log(ex);
+                throw ex;
+            }
+            finally
+            {
+                Log(EntryPointAction.Leave);
+            }
+        }
         public void RenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             try
             {
                 Log(EntryPointAction.Enter);
+                if (connectorRule.RenameDnFlow == null)
+                    return;
+
                 if (((connectorRule.RenameDnFlow != null) & connectorRule.RenameDnFlow.SourceValueIsPresent()) & connectorRule.RenameDnFlow.TargetValueIsPresent())
                 {
                     if (mventry[connectorRule.RenameDnFlow.Source].IsPresent && !string.IsNullOrEmpty(mventry[connectorRule.RenameDnFlow.Source].Value))
@@ -316,31 +378,52 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
-        public bool RuleApply(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
+
+        public bool ConditionsApply(CSEntry csentry, MVEntry mventry, ConditionBase[] conditions)
         {
             try
             {
                 Log(EntryPointAction.Enter);
-                if (connectorRule.Conditions.Length == 0)
+                if (conditions.Length == 0)
                 {
-                    Log("Rule applies (no conditions specified)", connectorRule.Name);
+                    Log("Applies (no conditions specified)");
                     return true;
                 }
-                foreach (ConditionBase conditionBase in connectorRule.Conditions)
+                foreach (ConditionBase conditionBase in conditions)
                 {
+                    if (conditionBase.GetType() == typeof(ConditionIsPresent))
+                    {
+                        ConditionIsPresent condition = (ConditionIsPresent)conditionBase;
+                        if (!mventry[condition.MVAttribute].IsPresent)
+                        {
+                            Log("Condition failed (Reason: Metaverse attribute value is present)", conditionBase.Description);
+                            return false;
+                        }
+                    }
+
+                    if (conditionBase.GetType() == typeof(ConditionIsNotPresent))
+                    {
+                        ConditionIsNotPresent condition = (ConditionIsNotPresent)conditionBase;
+                        if (mventry[condition.MVAttribute].IsPresent)
+                        {
+                            Log("Condition failed (Reason: Metaverse attribute value is present)", conditionBase.Description);
+                            return false;
+                        }
+                    }
+
                     if (conditionBase.GetType() == typeof(ConditionMatch))
                     {
                         ConditionMatch condition = (ConditionMatch)conditionBase;
                         if (!mventry[condition.MVAttribute].IsPresent)
                         {
-                            Log("Rule failed (Reason: No metaverse value is present)", conditionBase.Description);
+                            Log("Condition failed (Reason: No metaverse value is present)", conditionBase.Description);
                             return false;
                         }
                         else
                         {
                             if (!Regex.IsMatch(mventry[condition.MVAttribute].Value, condition.Pattern, RegexOptions.IgnoreCase))
                             {
-                                Log("Rule failed (Reason: RegEx doesnt match)", conditionBase.Description);
+                                Log("Condition failed (Reason: RegEx doesnt match)", conditionBase.Description);
                                 return false;
                             }
                         }
@@ -353,7 +436,7 @@ namespace Granfeldt
                         {
                             if (Regex.IsMatch(mventry[condition.MVAttribute].Value, condition.Pattern, RegexOptions.IgnoreCase))
                             {
-                                Log("Rule failed (Reason: RegEx match)", conditionBase.Description);
+                                Log("Condition failed (Reason: RegEx match)", conditionBase.Description);
                                 return false;
                             }
                         }
@@ -364,7 +447,7 @@ namespace Granfeldt
                         ConditionAttributeIsNotPresent condition = (ConditionAttributeIsNotPresent)conditionBase;
                         if (mventry[condition.MVAttribute].IsPresent)
                         {
-                            Log("Rule failed (Reason: Metaverse attribute is present)", conditionBase.Description);
+                            Log("Condition failed (Reason: Metaverse attribute is present)", conditionBase.Description);
                             return false;
                         }
                     }
@@ -374,7 +457,7 @@ namespace Granfeldt
                         ConditionAttributeIsPresent condition = (ConditionAttributeIsPresent)conditionBase;
                         if (!mventry[condition.MVAttribute].IsPresent)
                         {
-                            Log("Rule failed (Reason: Metaverse attribute is not present)", conditionBase.Description);
+                            Log("Condition failed (Reason: Metaverse attribute is not present)", conditionBase.Description);
                             return false;
                         }
                     }
@@ -385,7 +468,7 @@ namespace Granfeldt
                         ConnectedMA MA = mventry.ConnectedMAs[condition.ManagementAgentName];
                         if (MA.Connectors.Count > 0)
                         {
-                            Log(string.Format("Rule failed (Reason: Still connected to {0})", condition.ManagementAgentName), conditionBase.Description);
+                            Log(string.Format("Condition failed (Reason: Still connected to {0})", condition.ManagementAgentName), conditionBase.Description);
                             return false;
                         }
                     }
@@ -396,16 +479,15 @@ namespace Granfeldt
                         ConnectedMA MA = mventry.ConnectedMAs[condition.ManagementAgentName];
                         if (MA.Connectors.Count < 1)
                         {
-                            Log(string.Format("Rule failed (Reason: Not connected to {0})", condition.ManagementAgentName), conditionBase.Description);
+                            Log(string.Format("Condition failed (Reason: Not connected to {0})", condition.ManagementAgentName), conditionBase.Description);
                             return false;
                         }
                     }
                 }
 
                 // if we get here, all conditions have been met
-                Log("Rule applies (all conditions are met)", connectorRule.Name);
+                Log("Applies (all conditions are met)");
                 return true;
-
             }
             catch (Exception ex)
             {
@@ -417,6 +499,7 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
+
         public string ReplaceWithMVValueOrBlank(string source, MVEntry mventry)
         {
             MatchCollection mc = Regex.Matches(source, @"(?<=#mv\:)(?<attrname>\w+)#", RegexOptions.Compiled);
@@ -456,10 +539,20 @@ namespace Granfeldt
                     if (attributeBase.GetType() == typeof(AttributeFlowAttribute))
                     {
                         AttributeFlowAttribute attrFlow = (AttributeFlowAttribute)attributeBase;
-                        string TargetValue = mventry[attrFlow.Source].Value;
-                        if (attrFlow.LowercaseTargetValue) { TargetValue = TargetValue.ToString().ToLower(); }
-                        if (attrFlow.UppercaseTargetValue) { TargetValue = TargetValue.ToString().ToUpper(); }
-                        if (attrFlow.TrimTargetValue) { TargetValue = TargetValue.ToString().Trim(); }
+                        string TargetValue;
+                        if (mventry[attrFlow.Source].DataType == AttributeType.Binary)
+                        {
+                            TargetValue = BitConverter.ToString(mventry[attrFlow.Source].BinaryValue);
+                            TargetValue = TargetValue.Replace("-", "");
+                        }
+                        else
+                        {
+                            TargetValue = mventry[attrFlow.Source].Value;
+                        }
+
+                        if (attrFlow.LowercaseTargetValue) { TargetValue = TargetValue.ToLower(); }
+                        if (attrFlow.UppercaseTargetValue) { TargetValue = TargetValue.ToUpper(); }
+                        if (attrFlow.TrimTargetValue) { TargetValue = TargetValue.Trim(); }
 
                         TargetValue = (string.IsNullOrEmpty(attrFlow.Prefix)) ? TargetValue : attrFlow.Prefix + TargetValue;
 
@@ -573,9 +666,26 @@ namespace Granfeldt
         public AttributeFlowBase[] InitialFlows;
         public string Name = "";
         public RenameDnFlow RenameDnFlow = null;
+        public RenameAction ConditionalRename = null;
         public string SourceObject;
         public string TargetManagementAgentName = "";
         public string TargetObject;
+    }
+
+    public class RenameAction
+    {
+        /// <summary>
+        /// Use #mv:??# notation
+        /// </summary>
+        public string NewDNValue = null;
+        /// <summary>
+        /// Specify metaverse attribute name or [DN]
+        /// </summary>
+        public string DNAttribute = null;
+        /// <summary>
+        /// Conditions that must be met for renaming to take place
+        /// </summary>
+        public ConditionBase[] Conditions;
     }
 
     public class RenameDnFlow
@@ -583,6 +693,10 @@ namespace Granfeldt
         public bool ReprovisionOnRename = false;
         public string Source = null;
         public string Target = null;
+
+        public bool OnlyRenameOnRegularExpressionMatch = false;
+        public string RegExMVAttributeName = null;
+        public string RegExFilter = null;
 
         public bool SourceValueIsPresent()
         {
@@ -684,10 +798,20 @@ namespace Granfeldt
 
     #region ConditionBase
 
-    [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent)), XmlInclude(typeof(ConditionConnectedTo)), XmlInclude(typeof(ConditionNotConnectedTo))]
+    [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent)), XmlInclude(typeof(ConditionConnectedTo)), XmlInclude(typeof(ConditionNotConnectedTo)), XmlIncludeAttribute(typeof(ConditionIsPresent)), XmlIncludeAttribute(typeof(ConditionIsNotPresent))]
     public class ConditionBase
     {
         public string Description = "";
+    }
+
+    public class ConditionIsPresent : ConditionBase
+    {
+        public string MVAttribute = "";
+    }
+
+    public class ConditionIsNotPresent : ConditionBase
+    {
+        public string MVAttribute = "";
     }
 
     public class ConditionMatch : ConditionBase
