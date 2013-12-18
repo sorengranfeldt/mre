@@ -1,5 +1,0 @@
-C:\Data\Dropbox\private-code\fim-ilm\fimmre\bin\Release\FIM.MRE - More rule samples.xml
-C:\Data\Dropbox\private-code\fim-ilm\fimmre\bin\Release\FIM.MRE.xml
-C:\Data\Dropbox\private-code\fim-ilm\fimmre\bin\Release\FIM.MRE.dll
-C:\Data\Dropbox\private-code\fim-ilm\fimmre\obj\Release\FIM.MRE.csprojResolveAssemblyReference.cache
-C:\Data\Dropbox\private-code\fim-ilm\fimmre\obj\Release\FIM.MRE.dll
