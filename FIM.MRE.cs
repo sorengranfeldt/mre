@@ -19,18 +19,22 @@
 //  - added new conditions (IsPresent and IsNotPresent)
 //  - added suggestions from Niels Rossen
 //      - convert binary to string using BitConverter and additional error handling around existing connectors
+// September 15, 2014 | Soren Granfeldt
+//  - added options for escaping DN components in initial flows (AttributeFlowConstant) on provision and rename (documentation pending)
+//  - optimized rule selection and filtering for added performance (using Linq namespace)
+//  - optimized some logging text
 
 using Microsoft.MetadirectoryServices;
 using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
 using System.Xml.Serialization;
-using System.Linq;
 
 namespace Granfeldt
 {
