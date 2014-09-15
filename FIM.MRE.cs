@@ -30,6 +30,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
 using System.Xml.Serialization;
+using System.Linq;
 
 namespace Granfeldt
 {
@@ -144,65 +145,56 @@ namespace Granfeldt
             try
             {
                 Log(EntryPointAction.Enter);
-                foreach (Rule rule in EngineRules.Rules)
+                foreach (Rule rule in EngineRules.Rules.Where(mv => mv.Enabled && mv.SourceObject.Equals(mventry.ObjectType, StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (rule.Enabled)
+                    Log(string.Format("Start rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName));
+                    Log(string.Format("Object ({0}): {1} (GUID {2})", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "", mventry.ObjectID));
+                    CSEntry csentry = null;
+                    ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
+                    switch (rule.Action.ToLower())
                     {
-                        Log("Start rule", rule.Name);
-                        Log("Unique identifier (GUID)", mventry.ObjectID);
-                        Log("Display Name", mventry["displayName"].IsPresent ? mventry["displayName"].Value : "");
-                        Log("Object type", mventry.ObjectType);
-                        if (mventry.ObjectType.Equals(rule.SourceObject, StringComparison.OrdinalIgnoreCase))
-                        {
-                            CSEntry csentry = null;
-                            ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
-
-                            switch (rule.Action.ToLower())
+                        case "rename":
+                            if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.ConditionalRename.Conditions))
                             {
-                                case "rename":
-                                    if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.ConditionalRename.Conditions))
-                                    {
-                                        csentry = ma.Connectors.ByIndex[0];
-                                        this.RenameConnector(ma, csentry, mventry, rule);
-                                        this.ConditionalRenameConnector(ma, csentry, mventry, rule);
-                                    }
-                                    break;
-                                case "provision":
-                                    if (ma.Connectors.Count == 0)
-                                    {
-                                        if (ConditionsApply(csentry, mventry, rule.Conditions))
-                                        {
-                                            this.CreateConnector(ma, csentry, mventry, rule);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (ma.Connectors.Count == 1)
-                                        {
-                                            csentry = ma.Connectors.ByIndex[0];
-                                            this.RenameConnector(ma, csentry, mventry, rule);
-                                            this.ConditionalRenameConnector(ma, csentry, mventry, rule);
-                                        }
-                                        else
-                                        {
-                                            Log(new Exception("More than one connector (" + ma.Connectors.Count + ") exists"));
-                                        }
-                                    }
-                                    break;
-                                case "deprovision":
-                                    if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.Conditions))
-                                    {
-                                        csentry = ma.Connectors.ByIndex[0];
-                                        this.DeprovisionConnector(ma, csentry, mventry, rule);
-                                    }
-                                    break;
-                                default:
-                                    Log(new Exception("Invalid action specified"));
-                                    break;
+                                csentry = ma.Connectors.ByIndex[0];
+                                this.RenameConnector(ma, csentry, mventry, rule);
+                                this.ConditionalRenameConnector(ma, csentry, mventry, rule);
                             }
-                        }
-                        Log("End rule", rule.Name);
+                            break;
+                        case "provision":
+                            if (ma.Connectors.Count == 0)
+                            {
+                                if (ConditionsApply(csentry, mventry, rule.Conditions))
+                                {
+                                    this.CreateConnector(ma, csentry, mventry, rule);
+                                }
+                            }
+                            else
+                            {
+                                if (ma.Connectors.Count == 1)
+                                {
+                                    csentry = ma.Connectors.ByIndex[0];
+                                    this.RenameConnector(ma, csentry, mventry, rule);
+                                    this.ConditionalRenameConnector(ma, csentry, mventry, rule);
+                                }
+                                else
+                                {
+                                    Log(new Exception("More than one connector (" + ma.Connectors.Count + ") exists"));
+                                }
+                            }
+                            break;
+                        case "deprovision":
+                            if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.Conditions))
+                            {
+                                csentry = ma.Connectors.ByIndex[0];
+                                this.DeprovisionConnector(ma, csentry, mventry, rule);
+                            }
+                            break;
+                        default:
+                            Log(new Exception("Invalid action specified"));
+                            break;
                     }
+                    Log("End rule", rule.Name);
                 }
             }
             catch (Exception ex)
@@ -244,7 +236,7 @@ namespace Granfeldt
             {
                 Log(EntryPointAction.Enter);
                 csentry = ma.Connectors.StartNewConnector(connectorRule.TargetObject);
-                this.SetupInitialValues(csentry, mventry, connectorRule);
+                this.SetupInitialValues(ma, csentry, mventry, connectorRule);
                 csentry.CommitNewConnector();
             }
             catch (ObjectAlreadyExistsException ex)
@@ -278,7 +270,6 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
-
         public void ConditionalRenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             try
@@ -287,7 +278,19 @@ namespace Granfeldt
                 if (connectorRule.ConditionalRename == null)
                     return;
 
-                string replacedValue = ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.NewDNValue, mventry);
+                string escapedCN = null;
+                string replacedValue = null;
+                if (string.IsNullOrEmpty(connectorRule.ConditionalRename.EscapedCN))
+                {
+                    Log("No CN to escape");
+                    replacedValue = ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.NewDNValue, mventry);
+                }
+                else
+                {
+                    escapedCN = ma.EscapeDNComponent(ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.EscapedCN, mventry, "")).ToString();
+                    Log("EscapedCN", escapedCN);
+                    replacedValue = ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.NewDNValue, mventry, escapedCN);
+                }
                 Log("Current DN value", csentry.DN);
                 Log("New DN value", replacedValue);
                 ReferenceValue newdn = ma.CreateDN(replacedValue);
@@ -378,7 +381,6 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
-
         public bool ConditionsApply(CSEntry csentry, MVEntry mventry, ConditionBase[] conditions)
         {
             try
@@ -499,9 +501,14 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
-
         public string ReplaceWithMVValueOrBlank(string source, MVEntry mventry)
         {
+            return ReplaceWithMVValueOrBlank(source, mventry, "");
+        }
+        public string ReplaceWithMVValueOrBlank(string source, MVEntry mventry, string escapedCN)
+        {
+            source = Regex.Replace(source, @"#param:EscapedCN#", escapedCN ?? "", RegexOptions.IgnoreCase);
+
             MatchCollection mc = Regex.Matches(source, @"(?<=#mv\:)(?<attrname>\w+)#", RegexOptions.Compiled);
             foreach (Match match in mc)
             {
@@ -511,15 +518,13 @@ namespace Granfeldt
             }
             return source;
         }
-        public void SetupInitialValues(CSEntry csentry, MVEntry mventry, Rule connectorRule)
+        public void SetupInitialValues(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             try
             {
                 Log(EntryPointAction.Enter);
                 foreach (AttributeFlowBase attributeBase in connectorRule.InitialFlows)
                 {
-                    Log("Initial Attribute Flow", attributeBase.GetType().ToString());
-
                     #region Guid
                     if (attributeBase.GetType() == typeof(AttributeFlowGuid))
                     {
@@ -571,7 +576,20 @@ namespace Granfeldt
                     if (attributeBase.GetType() == typeof(AttributeFlowConstant))
                     {
                         AttributeFlowConstant attrFlow = (AttributeFlowConstant)attributeBase;
-                        string replacedValue = ReplaceWithMVValueOrBlank(attrFlow.Constant, mventry);
+
+                        string escapedCN = null;
+                        string replacedValue = null;
+                        if (string.IsNullOrEmpty(attrFlow.EscapedCN))
+                        {
+                            Log("\tNo CN to escape");
+                            replacedValue = ReplaceWithMVValueOrBlank(attrFlow.Constant, mventry);
+                        }
+                        else
+                        {
+                            escapedCN = ma.EscapeDNComponent(ReplaceWithMVValueOrBlank(attrFlow.EscapedCN, mventry, "")).ToString();
+                            Log("\tEscapedCN", escapedCN);
+                            replacedValue = ReplaceWithMVValueOrBlank(attrFlow.Constant, mventry, escapedCN);
+                        }
                         Log("\tFlow constant '" + replacedValue + "' to '" + attrFlow.Target + "'");
                         if (attrFlow.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                             csentry.DN = csentry.MA.CreateDN(replacedValue);
@@ -634,7 +652,6 @@ namespace Granfeldt
                         continue;
                     }
                     #endregion
-
                 }
             }
             catch (Exception ex)
@@ -674,6 +691,7 @@ namespace Granfeldt
 
     public class RenameAction
     {
+        public string EscapedCN;
         /// <summary>
         /// Use #mv:??# notation
         /// </summary>
@@ -864,6 +882,7 @@ namespace Granfeldt
 
     public class AttributeFlowConstant : AttributeFlowBase
     {
+        public string EscapedCN = null;
         public string Constant = null;
     }
 
@@ -883,113 +902,3 @@ namespace Granfeldt
     #endregion
 
 }
-
-#region obsolete code
-
-//public void DumpMvEntry(MVEntry mventry)
-//{
-//    return;
-//    try
-//    {
-//        this.TraceRoutine("Enter");
-//        Log("MV->ObjectID: " + mventry.ObjectID.ToString());
-//        Log("MV->ObjectType: " + mventry.ObjectType.ToString());
-//        AttributeNameEnumerator enumerator = mventry.GetEnumerator();
-//        enumerator.Reset();
-//        while (enumerator.MoveNext())
-//        {
-//            string current = enumerator.Current;
-//            if (mventry[current].IsPresent)
-//            {
-//                if (mventry[current].IsMultivalued)
-//                {
-//                    if (mventry[current].DataType == AttributeType.Reference)
-//                    {
-//                        Log("\tMV::" + current + " (multi-value): '(unable to show reference value)'");
-//                    }
-//                    else
-//                    {
-//                        ValueCollectionEnumerator enumerator2 = mventry[current].Values.GetEnumerator();
-//                        while (enumerator2.MoveNext())
-//                        {
-//                            Value value2 = enumerator2.Current;
-//                            Log("\tMV::" + current + " (multi-value): '" + value2.ToString() + "'");
-//                        }
-//                    }
-//                }
-//                else if (mventry[current].DataType == ((AttributeType)((int)AttributeType.Reference)))
-//                {
-//                    Log("\tMV::" + current + ": (unable to show reference value) [" + mventry[current].LastContributingMA.Name + " - " + (mventry[current].LastContributionTime.ToLocalTime()) + "]");
-//                }
-//                else
-//                {
-//                    Log("\tMV::" + current + ": '" + mventry[current].Value + "' [" + mventry[current].LastContributingMA.Name + " - " + (mventry[current].LastContributionTime.ToLocalTime()) + "]");
-//                }
-//            }
-//            else
-//            {
-//                Log("\t\tMV::" + current + ": [NOT PRESENT]");
-//            }
-//        }
-//        ConnectedMACollectionEnumerator enumerator3 = mventry.ConnectedMAs.GetEnumerator();
-//        while (enumerator3.MoveNext())
-//        {
-//            ConnectedMA dma = enumerator3.Current;
-//            CSEntry entry = dma.Connectors.ByIndex[0];
-//            Log("\tMA->" + dma.Name);
-//            Log("\t\tCS->ObjectType: " + entry.ObjectType);
-//            Log("\t\tCS->DN: " + entry.DN.ToString());
-//            Log("\t\tCS->RDN: " + entry.RDN.ToString());
-//            Log("\t\tCS->ConnectionChangeTime: " + (entry.ConnectionChangeTime.ToLocalTime()));
-//            Log("\t\tCS->ConnectionState: " + entry.ConnectionState.ToString());
-//            Log("\t\tCS->ConnectionRule: " + entry.ConnectionRule.ToString());
-//            CSEntry entry3 = entry;
-//            enumerator = entry.GetEnumerator();
-//            enumerator.Reset();
-//            while (enumerator.MoveNext())
-//            {
-//                string str2 = enumerator.Current;
-//                if (entry[str2].IsPresent)
-//                {
-//                    if (entry[str2].IsMultivalued)
-//                    {
-//                        if (entry[str2].DataType == ((AttributeType)((int)AttributeType.Reference)))
-//                        {
-//                            Log("\tCS::" + str2 + " (multi-value): '(unable to show reference value)'");
-//                        }
-//                        else
-//                        {
-//                            ValueCollectionEnumerator enumerator4 = entry[str2].Values.GetEnumerator();
-//                            while (enumerator4.MoveNext())
-//                            {
-//                                Value value3 = enumerator4.Current;
-//                                Log("\t\tCS::" + str2 + " (multi-value): '" + value3.ToString() + "'");
-//                            }
-//                        }
-//                    }
-//                    else
-//                    {
-//                        Log("\t\tCS::" + str2 + ": '" + entry[str2].Value + "'");
-//                    }
-//                }
-//                else
-//                {
-//                    Log("\t\tCS::" + str2 + ": [NOT PRESENT]");
-//                }
-//            }
-//            entry3 = null;
-//        }
-//    }
-//    catch (Exception ex)
-//    {
-//        Log(ex);
-//        throw ex;
-//    }
-//    finally
-//    {
-//        this.TraceRoutine("Exit");
-//    }
-//}
-
-
-#endregion
