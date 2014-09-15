@@ -3,6 +3,64 @@
   <Rules>
     <!-- AI begin -->
     <Rule>
+      <Name>rename enabled user</Name>
+      <Description></Description>
+      <TargetManagementAgentName>ad</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>person</SourceObject>
+      <TargetObject>user</TargetObject>
+      <Action>rename</Action>
+      <ConditionalRename>
+        <EscapedCN>CN=#mv:displayName#</EscapedCN>
+        <NewDNValue>#param:EscapedCN#,#mv:ou#</NewDNValue>
+        <DNAttribute>[DN]</DNAttribute>
+        <Conditions>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description></Description>
+            <MVAttribute>displayName</MVAttribute>
+          </ConditionBase>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description></Description>
+            <MVAttribute>ou</MVAttribute>
+          </ConditionBase>
+        </Conditions>
+      </ConditionalRename>
+    </Rule>
+    
+    <Rule>
+      <Name>rename disabled user</Name>
+      <Description></Description>
+      <TargetManagementAgentName>ad</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>person</SourceObject>
+      <TargetObject>user</TargetObject>
+      <Action>rename</Action>
+      <ConditionalRename>
+        <NewDNValue>CN=#mv:lastName#\, #mv:firstNameWithMiddleName# (#mv:accountName#) (Disabled by FIM),OU=Disabled Users,#mv:domainNamingContext#</NewDNValue>
+        <DNAttribute>[DN]</DNAttribute>
+        <Conditions>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description></Description>
+            <MVAttribute>displayName</MVAttribute>
+          </ConditionBase>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description></Description>
+            <MVAttribute>accountName</MVAttribute>
+          </ConditionBase>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description></Description>
+            <MVAttribute>domainNamingContext</MVAttribute>
+          </ConditionBase>
+          <ConditionBase xsi:type="ConditionMatch">
+            <Description></Description>
+            <MVAttribute>hrIsActive</MVAttribute>
+            <Pattern>^false$</Pattern>
+          </ConditionBase>
+        </Conditions>
+      </ConditionalRename>
+    </Rule>
+    
+    <Rule>
       <Name>Provision Person ==> AI</Name>
       <Description></Description>
       <TargetManagementAgentName xsi:type="xsd:string">AI MA</TargetManagementAgentName>
