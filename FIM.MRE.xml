@@ -2,7 +2,6 @@
 <RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <DisableAllRules>false</DisableAllRules>
   <Rules>
-
     <Rule>
       <Name>rename active user without adou</Name>
       <Description></Description>

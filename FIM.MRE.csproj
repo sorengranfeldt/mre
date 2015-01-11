@@ -83,6 +83,7 @@
     <Compile Include="FIM.MRE.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="FIM.MRE.Rules.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
