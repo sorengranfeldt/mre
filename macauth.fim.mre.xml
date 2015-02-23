@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Rules>
+
+    <Rule>
+      <Name>rename active macauth user</Name>
+      <Description></Description>
+      <TargetManagementAgentName>ad-macauth</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>macAuthAccount</SourceObject>
+      <TargetObject>user</TargetObject>
+      <Action>rename</Action>
+      <ConditionalRename>
+        <NewDNValue>CN=#mv:accountName#,OU=Active,OU=DHCP Managed,OU=REGSJMacAuth,DC=regsj,DC=intern</NewDNValue>
+        <DNAttribute>[DN]</DNAttribute>
+        <Conditions>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description>accountName must be present</Description>
+            <MVAttribute>accountName</MVAttribute>
+          </ConditionBase>
+          <ConditionBase xsi:type="ConditionConnectedTo">
+            <ManagementAgentName>dhcp</ManagementAgentName>
+          </ConditionBase>
+        </Conditions>
+      </ConditionalRename>
+    </Rule>
+
+    <Rule>
+      <Name>rename inactive macauth user</Name>
+      <Description></Description>
+      <TargetManagementAgentName>ad-macauth</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>macAuthAccount</SourceObject>
+      <TargetObject>user</TargetObject>
+      <Action>rename</Action>
+      <ConditionalRename>
+        <NewDNValue>CN=#mv:accountName#,OU=InActive,OU=DHCP Managed,OU=REGSJMacAuth,DC=regsj,DC=intern</NewDNValue>
+        <DNAttribute>[DN]</DNAttribute>
+        <Conditions>
+          <ConditionBase xsi:type="ConditionIsPresent">
+            <Description>accountName must be present</Description>
+            <MVAttribute>accountName</MVAttribute>
+          </ConditionBase>
+          <ConditionBase xsi:type="ConditionNotConnectedTo">
+            <ManagementAgentName>ad-macauth</ManagementAgentName>
+          </ConditionBase>
+        </Conditions>
+      </ConditionalRename>
+    </Rule>
+
+    <!--CSEntry csentry = MACAuthADMA.Connectors.StartNewConnector("group");
+    csentry.DN = MACAuthADMA.EscapeDNComponent(string.Format("CN={0}", mventry["accountName"].Value)).Concat("OU=Groups,OU=DHCP Managed,OU=REGSJMacAuth,DC=regsj,DC=intern"); ;
+    csentry["sAMAccountName"].Value = mventry["accountName"].Value.ToString();
+    csentry.CommitNewConnector();-->
+
+    <!--CSEntry csentry = MACAuthADMA.Connectors.StartNewConnector("user");
+    csentry.DN = ExpectedDn;
+    csentry["useraccountcontrol"].IntegerValue = 66176;
+    //csentry["unicodePwd"].Value = new string(mventry["accountName"].Value.ToCharArray().Reverse().ToArray());
+    csentry["unicodePwd"].Value = mventry["accountName"].StringValue.ToLower();
+    csentry["title"].StringValue = "INFOBLOX-MANAGED";
+    csentry.CommitNewConnector();-->
+    
+  </Rules>
+</RulesFile>

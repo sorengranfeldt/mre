@@ -19,10 +19,13 @@
 //  - added new conditions (IsPresent and IsNotPresent)
 //  - added suggestions from Niels Rossen
 //      - convert binary to string using BitConverter and additional error handling around existing connectors
-// September 15, 2014 | Soren Granfeldt
+// september 15, 2014 | soren granfeldt
 //  - added options for escaping DN components in initial flows (AttributeFlowConstant) on provision and rename (documentation pending)
 //  - optimized rule selection and filtering for added performance (using Linq namespace)
 //  - optimized some logging text
+// february 19, 2015 | soren granfeldt
+//  -added loading of seperate rules files
+//  -removing disabled rules right after load for faster processing with many rules
 
 using Microsoft.MetadirectoryServices;
 using Microsoft.Win32;
@@ -118,17 +121,46 @@ namespace Granfeldt
         {
             try
             {
+                try
+                {
+                    DebugLogFilename = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false).GetValue("DebugLogFilename", null).ToString();
+                    DebugLogFilename = string.Format(DebugLogFilename, DateTime.Now);
+                }
+                catch (System.NullReferenceException ex)
+                {
+                    ex.ToString();
+                    // we get here if key og hive doesn't exist which is perfectly okay
+                }
+
                 Log(EntryPointAction.Enter);
                 Log("Loading rules");
-                new MVRules().LoadSettingsFromFile(Path.Combine(Utils.ExtensionsDirectory, "FIM.MRE.xml"), ref this.EngineRules);
+                // loading default rules file
+                new MVRules().LoadSettingsFromFile(Path.Combine(Utils.ExtensionsDirectory, "fim.mre.xml"), ref this.EngineRules);
+                string[] ruleFiles = Directory.GetFiles(Utils.ExtensionsDirectory, "*.fim.mre.xml", SearchOption.TopDirectoryOnly);
+                foreach (string ruleFile in ruleFiles)
+                {
+                    RulesFile rules = new RulesFile();
+                    Log("loading-rule-file", ruleFile);
+                    new MVRules().LoadSettingsFromFile(ruleFile, ref rules);
+                    foreach (Rule rule in rules.Rules)
+                    {
+                        EngineRules.Rules.Add(rule);
+                    }
+                }
 
-                DebugLogFilename = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false).GetValue("DebugLogFilename", null).ToString();
-                DebugLogFilename = string.Format(DebugLogFilename, DateTime.Now);
-            }
-            catch (System.NullReferenceException ex)
-            {
-                ex.ToString();
-                // we get here if key og hive doesn't exist which is perfectly okay
+                foreach (Rule rule in EngineRules.Rules)
+                {
+                    if (rule.Enabled)
+                    {
+                        Log("active-rule", rule.Name);
+                    }
+                    else
+                    {
+                        Log("inactive-rule", rule.Name);
+                    }
+                }
+                Log("removing-inactive-rules", EngineRules.Rules.Count(ru => !ru.Enabled));
+                EngineRules.Rules.RemoveAll(rule => !rule.Enabled);
             }
             catch (Exception ex)
             {
