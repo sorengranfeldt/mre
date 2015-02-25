@@ -26,6 +26,8 @@
 // february 19, 2015 | soren granfeldt
 //  -added loading of seperate rules files
 //  -removing disabled rules right after load for faster processing with many rules
+// February 24, 2015 | Ryan Newington
+//  - added support for specifying additional object classes in provisioning rules
 
 using Microsoft.MetadirectoryServices;
 using Microsoft.Win32;
@@ -42,7 +44,6 @@ using System.Xml.Serialization;
 
 namespace Granfeldt
 {
-
     public class MVEngine : IMVSynchronization
     {
         static string DebugLogFilename = null;
@@ -275,6 +276,7 @@ namespace Granfeldt
                 csentry = ma.Connectors.StartNewConnector(connectorRule.TargetObject);
                 this.SetupInitialValues(ma, csentry, mventry, connectorRule);
                 csentry.CommitNewConnector();
+                this.AddAdditionalObjectClasses(csentry, mventry, connectorRule);
             }
             catch (ObjectAlreadyExistsException ex)
             {
@@ -290,6 +292,41 @@ namespace Granfeldt
                 Log(EntryPointAction.Leave);
             }
         }
+
+        private void AddAdditionalObjectClasses(CSEntry csentry, MVEntry mventry, Rule connectorRule)
+        {
+            if (!string.IsNullOrEmpty(connectorRule.TargetObjectAdditionalClasses))
+            {
+                ValueCollection newObjectClasses = Utils.ValueCollection(csentry.ObjectType);
+
+                Match match = Regex.Match(connectorRule.TargetObjectAdditionalClasses, @"^#mv\:(?<attrname>\w+)#$", RegexOptions.Compiled);
+                string[] valuesToAdd = null;
+
+                if (match.Success)
+                {
+                    string attributeName = match.Groups["attrname"].Value;
+                    valuesToAdd = mventry[attributeName].IsPresent ? mventry[attributeName].Values.ToStringArray() : new string[0];
+                }
+                else
+                {
+                    valuesToAdd = connectorRule.TargetObjectAdditionalClasses.Split(',');
+                }
+
+                if (valuesToAdd != null)
+                {
+                    foreach (string value in valuesToAdd)
+                    {
+                        newObjectClasses.Add(value);
+                    }
+                }
+
+                if (newObjectClasses.Count > 1)
+                {
+                    csentry.ObjectClass = newObjectClasses;
+                }
+            }
+        }
+
         public void DeprovisionConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             try
@@ -702,5 +739,4 @@ namespace Granfeldt
             }
         }
     }
-
 }

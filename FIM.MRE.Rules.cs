@@ -77,6 +77,7 @@ namespace Granfeldt
         public string SourceObject;
         public string TargetManagementAgentName = "";
         public string TargetObject;
+        public string TargetObjectAdditionalClasses = null;
 
         public Rule()
         {
