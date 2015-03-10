@@ -1,8 +1,16 @@
-﻿using System;
+﻿// february 26, 2015 | soren granfeldt
+//  - marked ConditionAttributeIsPresent and ConditionAttributeNotIsPresent as obsolete
+// march 7, 2015 | soren granfeldt
+//  -added options for future use of operators and/or on conditions
+
+using Microsoft.MetadirectoryServices;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Serialization;
 
@@ -17,7 +25,6 @@ namespace Granfeldt
         public void LoadSettingsFromFile(string Filename, ref RulesFile Rules)
         {
             XmlSerializer serializer = new XmlSerializer(typeof(RulesFile));
-            serializer.UnreferencedObject += new UnreferencedObjectEventHandler(this.Serializer_UnreferencedObject);
             StreamReader textReader = new StreamReader(Filename);
             Rules = (RulesFile)serializer.Deserialize(textReader);
             textReader.Close();
@@ -31,24 +38,11 @@ namespace Granfeldt
                 serializer.Serialize((TextWriter)writer, F);
                 writer.Close();
             }
-            catch (Exception exception1)
+            catch (Exception ex)
             {
-                Exception exception = exception1;
+                Exception exception = ex;
                 throw;
             }
-        }
-        private void Serializer_UnknownAttribute(object sender, XmlAttributeEventArgs e)
-        {
-            XmlAttribute attr = e.Attr;
-            throw new Exception("Unknown attribute " + attr.Name + "='" + attr.Value + "'");
-        }
-        private void Serializer_UnknownNode(object sender, XmlNodeEventArgs e)
-        {
-            throw new Exception("Unknown Node:" + e.Name + "\t" + e.Text);
-        }
-        private void Serializer_UnreferencedObject(object sender, UnreferencedObjectEventArgs e)
-        {
-            throw new Exception("UnreferencedObject: " + e.UnreferencedObject.ToString());
         }
 
         #endregion
@@ -64,16 +58,33 @@ namespace Granfeldt
         }
     }
 
+    public enum RuleAction
+    {
+        [XmlEnum("Provision")]
+        Provision,
+        [XmlEnum("Deprovision")]
+        Deprovision,
+        [XmlEnum("DeprovisionAll")]
+        DeprovisionAll,
+        [XmlEnum("Rename")]
+        Rename
+    }
+
     public class Rule
     {
-        public string Action;
-        public Conditions Conditions;
-        public string Description = "";
+        [XmlElement]
+        public RuleAction Action { get; set; }
         public bool Enabled = false;
-        public List<AttributeFlowBase> InitialFlows;
+
         public string Name = "";
+        public string Description = "";
+
+        public Conditions Conditions;
+        public List<AttributeFlowBase> InitialFlows;
+
         public RenameDnFlow RenameDnFlow = null;
         public RenameAction ConditionalRename = null;
+
         public string SourceObject;
         public string TargetManagementAgentName = "";
         public string TargetObject;
@@ -176,7 +187,6 @@ namespace Granfeldt
     {
         [XmlEnum("And")]
         And,
-
         [XmlEnum("Or")]
         Or
     }
@@ -184,58 +194,242 @@ namespace Granfeldt
     public class Conditions
     {
         [XmlAttribute]
+        [XmlTextAttribute()]
         public ConditionOperator Operator { get; set; }
         [XmlElement]
         public List<ConditionBase> ConditionBase { get; set; }
+
         public Conditions()
         {
             this.ConditionBase = new List<ConditionBase>();
         }
+        public virtual bool Met(MVEntry mventry, CSEntry csentry, TraceSource source)
+        {
+            if (Operator.Equals(ConditionOperator.And))
+            {
+                bool met = true;
+                foreach (ConditionBase condition in ConditionBase)
+                {
+                    met = condition.Met(mventry, csentry, source);
+                    source.TraceInformation("'And' condition '{0}' returned: {1}", condition.GetType(), met);
+                    if (met == false) break;
+                }
+                source.TraceInformation("All 'And' conditions {0} met", met ? "were" : "were not");
+                return met;
+            }
+            else
+            {
+                bool met = false;
+                foreach (ConditionBase condition in ConditionBase)
+                {
+                    met = condition.Met(mventry, csentry, source);
+                    source.TraceInformation("'Or' condition '{0}' returned: {1}", condition.GetType(), met);
+                    if (met == true) break;
+                }
+                source.TraceInformation("One or more 'Or' conditions {0} met", met ? "were" : "were not");
+                return met;
+            }
+        }
     }
 
-    [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent)), XmlInclude(typeof(ConditionConnectedTo)), XmlInclude(typeof(ConditionNotConnectedTo)), XmlIncludeAttribute(typeof(ConditionIsPresent)), XmlIncludeAttribute(typeof(ConditionIsNotPresent))]
+    [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent)), XmlInclude(typeof(ConditionConnectedTo)), XmlInclude(typeof(ConditionNotConnectedTo)), XmlIncludeAttribute(typeof(ConditionIsPresent)), XmlIncludeAttribute(typeof(ConditionIsNotPresent)), XmlInclude(typeof(SubCondition))]
     public class ConditionBase
     {
         public string Description = "";
-        public Conditions Conditions { get; set; }
-        public ConditionBase()
+
+        public virtual bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
         {
-            this.Conditions = new Conditions();
+            return true;
         }
     }
+
     public class ConditionIsPresent : ConditionBase
     {
         public string MVAttribute = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            if (mventry[this.MVAttribute].IsPresent)
+            {
+                return true;
+            }
+            else
+            {
+                trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+                return false;
+            }
+        }
     }
     public class ConditionIsNotPresent : ConditionBase
     {
         public string MVAttribute = "";
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            if (!mventry[this.MVAttribute].IsPresent)
+            {
+                return true;
+            }
+            else
+            {
+                trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+                return false;
+            }
+        }
     }
+
     public class ConditionMatch : ConditionBase
     {
         public string MVAttribute = "";
         public string Pattern = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            if (!mventry[this.MVAttribute].IsPresent)
+            {
+                trace.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
+                return false;
+            }
+            else
+            {
+                if (!Regex.IsMatch(mventry[this.MVAttribute].Value, this.Pattern, RegexOptions.IgnoreCase))
+                {
+                    trace.TraceInformation("Condition failed (Reason: RegEx doesnt match) {0}", this.Description);
+                    return false;
+                }
+                return true;
+            }
+        }
     }
     public class ConditionNotMatch : ConditionBase
     {
         public string MVAttribute = "";
         public string Pattern = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            if (mventry[this.MVAttribute].IsPresent)
+            {
+                if (Regex.IsMatch(mventry[this.MVAttribute].Value, this.Pattern, RegexOptions.IgnoreCase))
+                {
+                    trace.TraceInformation("Condition failed (Reason: RegEx match) {0}", this.Description);
+                    return false;
+                }
+            }
+            return true; // value not present effectively means not-match
+        }
     }
-    public class ConditionAttributeIsPresent : ConditionBase
-    {
-        public string MVAttribute = "";
-    }
-    public class ConditionAttributeIsNotPresent : ConditionBase
-    {
-        public string MVAttribute = "";
-    }
+
     public class ConditionConnectedTo : ConditionBase
     {
         public string ManagementAgentName = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            ConnectedMA MA = mventry.ConnectedMAs[this.ManagementAgentName];
+            if (MA.Connectors.Count.Equals(0))
+            {
+                trace.TraceInformation("Condition failed (Reason: Not connected to {0}) {1}", this.ManagementAgentName, this.Description);
+                return false;
+            }
+            return true;
+        }
     }
     public class ConditionNotConnectedTo : ConditionBase
     {
         public string ManagementAgentName = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            ConnectedMA MA = mventry.ConnectedMAs[this.ManagementAgentName];
+            if (MA.Connectors.Count > 0)
+            {
+                trace.TraceInformation("Condition failed (Reason: Still connected to {0}) {1}", this.ManagementAgentName, this.Description);
+                return false;
+            }
+            return true;
+        }
+    }
+
+    public class SubCondition : ConditionBase
+    {
+        [XmlAttribute]
+        [XmlTextAttribute()]
+        public ConditionOperator Operator { get; set; }
+
+        [XmlElement]
+        public List<ConditionBase> ConditionBase { get; set; }
+
+        public SubCondition()
+        {
+            this.ConditionBase = new List<ConditionBase>();
+        }
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource source)
+        {
+            if (Operator.Equals(ConditionOperator.And))
+            {
+                bool met = true;
+                foreach (ConditionBase condition in ConditionBase)
+                {
+                    met = condition.Met(mventry, csentry, source);
+                    source.TraceInformation("'And' condition '{0}' returned: {1}", condition.GetType(), met);
+                    if (met == false) break;
+                }
+                source.TraceInformation("All 'And' conditions {0} met", met ? "were" : "were not");
+                return met;
+            }
+            else
+            {
+                bool met = false;
+                foreach (ConditionBase condition in ConditionBase)
+                {
+                    met = condition.Met(mventry, csentry, source);
+                    source.TraceInformation("'Or' condition '{0}' returned: {1}", condition.GetType(), met);
+                    if (met == true) break;
+                }
+                source.TraceInformation("One or more 'Or' conditions {0} met", met ? "were" : "were not");
+                return met;
+            }
+        }
+    }
+
+    [Obsolete]
+    public class ConditionAttributeIsPresent : ConditionBase
+    {
+        public string MVAttribute = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            trace.TraceEvent(TraceEventType.Warning, 1, "Condition type 'ConditionAttributeIsPresent' is obsolete. Please see documentation.");
+            if (mventry[this.MVAttribute].IsPresent)
+            {
+                return true;
+            }
+            else
+            {
+                trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+                return false;
+            }
+        }
+    }
+    [Obsolete]
+    public class ConditionAttributeIsNotPresent : ConditionBase
+    {
+        public string MVAttribute = "";
+
+        public override bool Met(MVEntry mventry, CSEntry csentry, TraceSource trace)
+        {
+            trace.TraceEvent(TraceEventType.Warning, 1, "Condition type 'ConditionAttributeIsNotPresent' is obsolete. Please see documentation.");
+            if (!mventry[this.MVAttribute].IsPresent)
+            {
+                return true;
+            }
+            else
+            {
+                trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+                return false;
+            }
+        }
     }
 
     #endregion

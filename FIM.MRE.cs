@@ -24,10 +24,15 @@
 //  - optimized rule selection and filtering for added performance (using Linq namespace)
 //  - optimized some logging text
 // february 19, 2015 | soren granfeldt
-//  -added loading of seperate rules files
+//  -added loading of separate rules files
 //  -removing disabled rules right after load for faster processing with many rules
-// February 24, 2015 | Ryan Newington
-//  - added support for specifying additional object classes in provisioning rules
+// february 24, 2015 | ryan newington
+//  -added support for specifying additional object classes in provisioning rules
+// february 27, 2015 | soren granfeldt
+//  -added tracesource and removed old logging function
+// march 10, 2015 | soren granfeldt
+//  -marked RenameConnector as obsolete
+//  -moved condition logic to the classes
 
 using Microsoft.MetadirectoryServices;
 using Microsoft.Win32;
@@ -46,75 +51,11 @@ namespace Granfeldt
 {
     public class MVEngine : IMVSynchronization
     {
+        protected TraceSource trace;
+        const string TraceSourceName = "FIM.MRE";
+
         static string DebugLogFilename = null;
         private RulesFile EngineRules = new RulesFile();
-
-        #region Logging
-
-        static public Mutex mutex = new Mutex();
-
-        enum EntryPointAction
-        {
-            Enter,
-            Leave
-        }
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto)]
-        public static extern void OutputDebugString(string message);
-
-        static void Log(string s)
-        {
-            s = GetEntryPointName() + " " + s;
-            mutex.WaitOne();
-            if (!string.IsNullOrEmpty(DebugLogFilename))
-            {
-                using (StreamWriter f = new StreamWriter(DebugLogFilename, true))
-                {
-                    f.WriteLine(s);
-                }
-            }
-            mutex.ReleaseMutex();
-            OutputDebugString(s);
-        }
-        static void Log(string key, object value)
-        {
-            Log(string.Format("{0}: {1}", key, value.ToString()));
-        }
-        static void Log(Exception ex)
-        {
-            Log(string.Format("{0}: {1}", ex.GetType().ToString(), ex.Message));
-        }
-        static void Log(EntryPointAction entryPointAction)
-        {
-            Log(string.Format("{0}: {1}", GetEntryPointName(), entryPointAction.ToString()));
-        }
-        public static string GetEntryPointName()
-        {
-            StackTrace trace = new StackTrace();
-            int index = 0;
-            string str = null;
-            for (index = trace.FrameCount - 2; index >= 2; index += -1)
-            {
-                if (str != null)
-                {
-                    str = str + "->";
-                }
-                str = str + trace.GetFrame(index).GetMethod().Name;
-            }
-            trace = null;
-            return str;
-        }
-
-        #endregion
-
-        #region Helper Functions
-
-        public string FIMInstallationDirectory()
-        {
-            return Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services\FIMSynchronizationService\Parameters", false).GetValue("Path").ToString();
-        }
-
-        #endregion
 
         #region IMVSynchronization Methods
 
@@ -122,76 +63,105 @@ namespace Granfeldt
         {
             try
             {
+                trace = new TraceSource(TraceSourceName, SourceLevels.All);
+                trace.TraceEvent(TraceEventType.Information, 0, "enter-initialize");
                 try
                 {
-                    DebugLogFilename = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false).GetValue("DebugLogFilename", null).ToString();
+                    RegistryKey machineRegistry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32);
+
+                    DebugLogFilename = machineRegistry.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false).GetValue("DebugLogFilename", null).ToString();
                     DebugLogFilename = string.Format(DebugLogFilename, DateTime.Now);
+
+                    TextWriterTraceListener i = new TextWriterTraceListener(Path.ChangeExtension(DebugLogFilename, ".log"), TraceSourceName);
+                    i.TraceOutputOptions = TraceOptions.DateTime;
+                    i.Filter = new EventTypeFilter(SourceLevels.All);
+                    StreamWriter sw = i.Writer as StreamWriter;
+                    if (sw != null) sw.AutoFlush = true;
+                    trace.Listeners.Add(i);
+
+                    TextWriterTraceListener el = new TextWriterTraceListener(Path.ChangeExtension(DebugLogFilename, ".errors.log"), TraceSourceName);
+                    el.TraceOutputOptions = TraceOptions.DateTime | TraceOptions.Callstack;
+                    el.Filter = new EventTypeFilter(SourceLevels.Critical | SourceLevels.Error | SourceLevels.Warning);
+                    StreamWriter elstream = el.Writer as StreamWriter;
+                    if (elstream != null) elstream.AutoFlush = true;
+                    trace.Listeners.Add(el);
                 }
                 catch (System.NullReferenceException ex)
                 {
-                    ex.ToString();
                     // we get here if key og hive doesn't exist which is perfectly okay
+                    // i have yet to find a better method for determining whether 
+                    // a specific registry exists or not to avoid using this
+                    // try/catch thingy
+                    trace.TraceInformation("no-logging-file-specified {0}", ex.Message);
                 }
 
-                Log(EntryPointAction.Enter);
-                Log("Loading rules");
-                // loading default rules file
-                new MVRules().LoadSettingsFromFile(Path.Combine(Utils.ExtensionsDirectory, "fim.mre.xml"), ref this.EngineRules);
-                string[] ruleFiles = Directory.GetFiles(Utils.ExtensionsDirectory, "*.fim.mre.xml", SearchOption.TopDirectoryOnly);
+                string extensionsDirectory = Utils.ExtensionsDirectory;
+#if DEBUG
+                extensionsDirectory = Directory.GetCurrentDirectory();
+#endif
+                trace.TraceInformation("loading-default-rules-file");
+                new MVRules().LoadSettingsFromFile(Path.Combine(extensionsDirectory, "fim.mre.xml"), ref this.EngineRules);
+                trace.TraceInformation("loading-additional-rules-files");
+                string[] ruleFiles = Directory.GetFiles(extensionsDirectory, "*.fim.mre.xml", SearchOption.TopDirectoryOnly);
                 foreach (string ruleFile in ruleFiles)
                 {
                     RulesFile rules = new RulesFile();
-                    Log("loading-rule-file", ruleFile);
+                    trace.TraceInformation("loading-rule-file {0}", ruleFile);
                     new MVRules().LoadSettingsFromFile(ruleFile, ref rules);
                     foreach (Rule rule in rules.Rules)
                     {
                         EngineRules.Rules.Add(rule);
                     }
                 }
-
+                trace.TraceInformation("evaluating-{0}-rules", EngineRules.Rules.Count);
                 foreach (Rule rule in EngineRules.Rules)
                 {
+                    if (rule.Enabled && rule.RenameDnFlow != null)
+                    {
+                        trace.TraceEvent(TraceEventType.Warning, 1, "RenameConnector XML is obsolete and will be removed from coming version.");
+                    }
+
                     if (rule.Enabled)
                     {
-                        Log("active-rule", rule.Name);
+                        trace.TraceInformation("found-active-rule {0}", rule.Name);
                     }
                     else
                     {
-                        Log("inactive-rule", rule.Name);
+                        trace.TraceInformation("found-inactive-rule {0}", rule.Name);
                     }
                 }
-                Log("removing-inactive-rules", EngineRules.Rules.Count(ru => !ru.Enabled));
+                trace.TraceInformation("removing-inactive-{0}-rules", EngineRules.Rules.Count(ru => !ru.Enabled));
                 EngineRules.Rules.RemoveAll(rule => !rule.Enabled);
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.InnerException.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-initialize");
             }
         }
         public void Provision(MVEntry mventry)
         {
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-provision");
             if (EngineRules.DisableAllRules)
             {
-                Log("Provisioning is disabled");
+                trace.TraceInformation("provisioning-is-disabled");
                 return;
             }
             try
             {
-                Log(EntryPointAction.Enter);
-                foreach (Rule rule in EngineRules.Rules.Where(mv => mv.Enabled && mv.SourceObject.Equals(mventry.ObjectType, StringComparison.OrdinalIgnoreCase)))
+                foreach (Rule rule in EngineRules.Rules.Where(mv => mv.SourceObject.Equals(mventry.ObjectType, StringComparison.OrdinalIgnoreCase)))
                 {
-                    Log(string.Format("Start rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName));
-                    Log(string.Format("Object ({0}): {1} (GUID {2})", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "", mventry.ObjectID));
+                    trace.TraceInformation("start-rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName);
+                    trace.TraceInformation("Object ({0}): {1} (GUID {2})", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "", mventry.ObjectID);
                     CSEntry csentry = null;
                     ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
-                    switch (rule.Action.ToLower())
+                    switch (rule.Action)
                     {
-                        case "rename":
+                        case RuleAction.Rename:
                             if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.ConditionalRename.Conditions))
                             {
                                 csentry = ma.Connectors.ByIndex[0];
@@ -199,7 +169,7 @@ namespace Granfeldt
                                 this.ConditionalRenameConnector(ma, csentry, mventry, rule);
                             }
                             break;
-                        case "provision":
+                        case RuleAction.Provision:
                             if (ma.Connectors.Count == 0)
                             {
                                 if (ConditionsApply(csentry, mventry, rule.Conditions))
@@ -217,32 +187,38 @@ namespace Granfeldt
                                 }
                                 else
                                 {
-                                    Log(new Exception("More than one connector (" + ma.Connectors.Count + ") exists"));
+                                    trace.TraceEvent(TraceEventType.Error, 1, "more-than-one-connector-(" + ma.Connectors.Count + ")-exists");
                                 }
                             }
                             break;
-                        case "deprovision":
+                        case RuleAction.Deprovision:
                             if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.Conditions))
                             {
                                 csentry = ma.Connectors.ByIndex[0];
                                 this.DeprovisionConnector(ma, csentry, mventry, rule);
                             }
                             break;
+                        case RuleAction.DeprovisionAll:
+                            if (ConditionsApply(csentry, mventry, rule.Conditions))
+                            {
+                                mventry.ConnectedMAs.DeprovisionAll();
+                            }
+                            break;
                         default:
-                            Log(new Exception("Invalid action specified"));
+                            trace.TraceEvent(TraceEventType.Error, 1, "invalid-action-specified");
                             break;
                     }
-                    Log("End rule", rule.Name);
+                    trace.TraceInformation("end-rule {0}", rule.Name);
                 }
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-provision");
             }
         }
         public bool ShouldDeleteFromMV(CSEntry csentry, MVEntry mventry)
@@ -251,104 +227,89 @@ namespace Granfeldt
         }
         public void Terminate()
         {
-            try
-            {
-                Log(EntryPointAction.Enter);
-            }
-            catch (Exception ex)
-            {
-                Log(ex);
-                throw ex;
-            }
-            finally
-            {
-                Log(EntryPointAction.Leave);
-            }
+            trace.TraceEvent(TraceEventType.Information, 0, "terminate");
         }
 
         #endregion
 
-        public void CreateConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
+        public void CreateConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-createconnector");
             try
             {
-                Log(EntryPointAction.Enter);
-                csentry = ma.Connectors.StartNewConnector(connectorRule.TargetObject);
-                this.SetupInitialValues(ma, csentry, mventry, connectorRule);
-                csentry.CommitNewConnector();
-                this.AddAdditionalObjectClasses(csentry, mventry, connectorRule);
-            }
-            catch (ObjectAlreadyExistsException ex)
-            {
-                Log(ex);
-            }
-            catch (Exception ex)
-            {
-                Log(ex);
-                throw ex;
-            }
-            finally
-            {
-                Log(EntryPointAction.Leave);
-            }
-        }
-
-        private void AddAdditionalObjectClasses(CSEntry csentry, MVEntry mventry, Rule connectorRule)
-        {
-            if (!string.IsNullOrEmpty(connectorRule.TargetObjectAdditionalClasses))
-            {
-                ValueCollection newObjectClasses = Utils.ValueCollection(csentry.ObjectType);
-
-                Match match = Regex.Match(connectorRule.TargetObjectAdditionalClasses, @"^#mv\:(?<attrname>\w+)#$", RegexOptions.Compiled);
-                string[] valuesToAdd = null;
-
-                if (match.Success)
+                IList<string> additionalObjectClasses = this.GetAdditionalObjectClasses(mventry, rule);
+                if (additionalObjectClasses.Count > 0)
                 {
-                    string attributeName = match.Groups["attrname"].Value;
-                    valuesToAdd = mventry[attributeName].IsPresent ? mventry[attributeName].Values.ToStringArray() : new string[0];
+                    csentry = ma.Connectors.StartNewConnector(rule.TargetObject, additionalObjectClasses.ToArray());
                 }
                 else
                 {
-                    valuesToAdd = connectorRule.TargetObjectAdditionalClasses.Split(',');
+                    csentry = ma.Connectors.StartNewConnector(rule.TargetObject);
                 }
 
-                if (valuesToAdd != null)
+                this.SetupInitialValues(ma, csentry, mventry, rule);
+                csentry.CommitNewConnector();
+            }
+            catch (Exception ex)
+            {
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
+            }
+            finally
+            {
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-createconnector");
+            }
+        }
+        private IList<string> GetAdditionalObjectClasses(MVEntry mventry, Rule connectorRule)
+        {
+            List<string> valuesToAdd = new List<string>();
+            if (!string.IsNullOrEmpty(connectorRule.TargetObjectAdditionalClasses))
+            {
+                Match match = Regex.Match(connectorRule.TargetObjectAdditionalClasses, @"^#mv\:(?<attrname>\w+)#$", RegexOptions.Compiled);
+                if (match.Success)
                 {
-                    foreach (string value in valuesToAdd)
+                    string attributeName = match.Groups["attrname"].Value;
+                    if (mventry[attributeName].IsPresent)
                     {
-                        newObjectClasses.Add(value);
+                        valuesToAdd.AddRange(mventry[attributeName].Values.ToStringArray());
                     }
                 }
-
-                if (newObjectClasses.Count > 1)
+                else
                 {
-                    csentry.ObjectClass = newObjectClasses;
+                    valuesToAdd.AddRange(connectorRule.TargetObjectAdditionalClasses.Split(','));
                 }
             }
+
+            if (valuesToAdd.Count > 0)
+            {
+                valuesToAdd.Insert(0, connectorRule.TargetObject);
+            }
+
+            return valuesToAdd;
         }
 
         public void DeprovisionConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-deprovisionconnector");
             try
             {
-                Log(EntryPointAction.Enter);
                 csentry.Deprovision();
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-deprovisionconnector");
             }
         }
         public void ConditionalRenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-conditionalrenameconnector");
             try
             {
-                Log(EntryPointAction.Enter);
                 if (connectorRule.ConditionalRename == null)
                     return;
 
@@ -356,21 +317,21 @@ namespace Granfeldt
                 string replacedValue = null;
                 if (string.IsNullOrEmpty(connectorRule.ConditionalRename.EscapedCN))
                 {
-                    Log("No CN to escape");
+                    trace.TraceInformation("no-cn-to-escape");
                     replacedValue = ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.NewDNValue, mventry);
                 }
                 else
                 {
                     escapedCN = ma.EscapeDNComponent(ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.EscapedCN, mventry, "")).ToString();
-                    Log("EscapedCN", escapedCN);
+                    trace.TraceInformation("escaped-cn {0}", escapedCN);
                     replacedValue = ReplaceWithMVValueOrBlank(connectorRule.ConditionalRename.NewDNValue, mventry, escapedCN);
                 }
                 ReferenceValue newdn = ma.CreateDN(replacedValue);
-                Log("Old DN", csentry.DN.ToString());
-                Log("New DN", newdn.ToString());
+                trace.TraceInformation("old-dn {0}", csentry.DN.ToString());
+                trace.TraceInformation("new-dn {0}", newdn.ToString());
                 if (csentry.DN.ToString().Equals(newdn.ToString()))
                 {
-                    Log("No renaming necessary");
+                    trace.TraceInformation("no-renaming-necessary");
                 }
                 else
                 {
@@ -379,22 +340,24 @@ namespace Granfeldt
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-conditionalrenameconnector");
             }
         }
+
+        [Obsolete("Use ConditionalRename instead")]
         public void RenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
+            if (connectorRule.RenameDnFlow == null)
+                return;
+
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-renameconnector");
             try
             {
-                Log(EntryPointAction.Enter);
-                if (connectorRule.RenameDnFlow == null)
-                    return;
-
                 if (((connectorRule.RenameDnFlow != null) & connectorRule.RenameDnFlow.SourceValueIsPresent()) & connectorRule.RenameDnFlow.TargetValueIsPresent())
                 {
                     if (mventry[connectorRule.RenameDnFlow.Source].IsPresent && !string.IsNullOrEmpty(mventry[connectorRule.RenameDnFlow.Source].Value))
@@ -403,30 +366,30 @@ namespace Granfeldt
                         {
                             if (mventry[connectorRule.RenameDnFlow.Source].Value != csentry[connectorRule.RenameDnFlow.Target].Value)
                             {
-                                Log("Performing reprovisioning " + csentry.DN.ToString());
-                                Log("Source(mv): " + mventry[connectorRule.RenameDnFlow.Source].Value);
-                                Log("Target(cs): " + mventry[connectorRule.RenameDnFlow.Source].Value);
+                                trace.TraceInformation("Reprovisioning {0}", csentry.DN.ToString());
+                                trace.TraceInformation("Source(mv): {0}", mventry[connectorRule.RenameDnFlow.Source].Value);
+                                trace.TraceInformation("Target(cs): {0}", mventry[connectorRule.RenameDnFlow.Target].Value);
                                 DeprovisionConnector(ma, csentry, mventry, connectorRule);
                                 CreateConnector(ma, csentry, mventry, connectorRule);
                             }
                             else
                             {
-                                Log("No difference in source and target; no reprovisioning will be done " + csentry.DN.ToString());
+                                trace.TraceInformation("No difference in source and target; no reprovisioning will be done {0}", csentry.DN.ToString());
                             }
                         }
                         else
                         {
                             if (connectorRule.RenameDnFlow.Target.ToUpper() == "[DN]")
                             {
-                                Log("Current CS:DN is '" + csentry.DN.ToString() + "'");
-                                Log("Renaming to MV::" + connectorRule.RenameDnFlow.Source + ", value: '" + mventry[connectorRule.RenameDnFlow.Source].Value + "'");
+                                trace.TraceInformation("Current CS:DN is '{0}'", csentry.DN.ToString());
+                                trace.TraceInformation("Renaming to MV::{0}, value: '{1}'", connectorRule.RenameDnFlow.Source, mventry[connectorRule.RenameDnFlow.Source].Value);
                                 if (mventry[connectorRule.RenameDnFlow.Source].IsPresent)
                                 {
                                     csentry.DN = ma.CreateDN(mventry[connectorRule.RenameDnFlow.Source].Value);
                                 }
                                 else
                                 {
-                                    Log(new Exception(connectorRule.RenameDnFlow.Source + " is not present in metaverse", new Exception("")));
+                                    trace.TraceInformation("{0} is not present in metaverse", connectorRule.RenameDnFlow.Source);
                                 }
                             }
                             else
@@ -437,144 +400,44 @@ namespace Granfeldt
                     }
                     else
                     {
-                        Log(new Exception(connectorRule.RenameDnFlow.Source + " is null, empty or not present in metaverse", new Exception("")));
+                        trace.TraceInformation("{0} is null, empty or not present in metaverse", connectorRule.RenameDnFlow.Source);
                     }
-                }
-                else
-                {
-                    Log("No source and/or target for renaming is specified, hence no DN renaming is done");
                 }
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-renameconnector");
             }
         }
+
         public bool ConditionsApply(CSEntry csentry, MVEntry mventry, Conditions conditions)
         {
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-conditionsapply");
             try
             {
-                Log(EntryPointAction.Enter);
                 if (conditions == null || conditions.ConditionBase.Count == 0)
                 {
-                    Log("Applies (no conditions specified)");
+                    trace.TraceInformation("No conditions specified (returning true)");
                     return true;
                 }
-                foreach (ConditionBase conditionBase in conditions.ConditionBase)
-                {
-                    if (conditionBase.GetType() == typeof(ConditionIsPresent))
-                    {
-                        ConditionIsPresent condition = (ConditionIsPresent)conditionBase;
-                        if (!mventry[condition.MVAttribute].IsPresent)
-                        {
-                            Log("Condition failed (Reason: Metaverse attribute value is present)", conditionBase.Description);
-                            return false;
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionIsNotPresent))
-                    {
-                        ConditionIsNotPresent condition = (ConditionIsNotPresent)conditionBase;
-                        if (mventry[condition.MVAttribute].IsPresent)
-                        {
-                            Log("Condition failed (Reason: Metaverse attribute value is present)", conditionBase.Description);
-                            return false;
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionMatch))
-                    {
-                        ConditionMatch condition = (ConditionMatch)conditionBase;
-                        if (!mventry[condition.MVAttribute].IsPresent)
-                        {
-                            Log("Condition failed (Reason: No metaverse value is present)", conditionBase.Description);
-                            return false;
-                        }
-                        else
-                        {
-                            if (!Regex.IsMatch(mventry[condition.MVAttribute].Value, condition.Pattern, RegexOptions.IgnoreCase))
-                            {
-                                Log("Condition failed (Reason: RegEx doesnt match)", conditionBase.Description);
-                                return false;
-                            }
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionNotMatch))
-                    {
-                        ConditionNotMatch condition = (ConditionNotMatch)conditionBase;
-                        if (mventry[condition.MVAttribute].IsPresent)
-                        {
-                            if (Regex.IsMatch(mventry[condition.MVAttribute].Value, condition.Pattern, RegexOptions.IgnoreCase))
-                            {
-                                Log("Condition failed (Reason: RegEx match)", conditionBase.Description);
-                                return false;
-                            }
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionAttributeIsNotPresent))
-                    {
-                        ConditionAttributeIsNotPresent condition = (ConditionAttributeIsNotPresent)conditionBase;
-                        if (mventry[condition.MVAttribute].IsPresent)
-                        {
-                            Log("Condition failed (Reason: Metaverse attribute is present)", conditionBase.Description);
-                            return false;
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionAttributeIsPresent))
-                    {
-                        ConditionAttributeIsPresent condition = (ConditionAttributeIsPresent)conditionBase;
-                        if (!mventry[condition.MVAttribute].IsPresent)
-                        {
-                            Log("Condition failed (Reason: Metaverse attribute is not present)", conditionBase.Description);
-                            return false;
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionNotConnectedTo))
-                    {
-                        ConditionNotConnectedTo condition = (ConditionNotConnectedTo)conditionBase;
-                        ConnectedMA MA = mventry.ConnectedMAs[condition.ManagementAgentName];
-                        if (MA.Connectors.Count > 0)
-                        {
-                            Log(string.Format("Condition failed (Reason: Still connected to {0})", condition.ManagementAgentName), conditionBase.Description);
-                            return false;
-                        }
-                    }
-
-                    if (conditionBase.GetType() == typeof(ConditionConnectedTo))
-                    {
-                        ConditionConnectedTo condition = (ConditionConnectedTo)conditionBase;
-                        ConnectedMA MA = mventry.ConnectedMAs[condition.ManagementAgentName];
-                        if (MA.Connectors.Count < 1)
-                        {
-                            Log(string.Format("Condition failed (Reason: Not connected to {0})", condition.ManagementAgentName), conditionBase.Description);
-                            return false;
-                        }
-                    }
-                }
-
-                // if we get here, all conditions have been met
-                Log("Applies (all conditions are met)");
-                return true;
+                return conditions.Met(mventry, csentry, trace);
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-conditionsapply");
             }
         }
+
         public string ReplaceWithMVValueOrBlank(string source, MVEntry mventry)
         {
             return ReplaceWithMVValueOrBlank(source, mventry, "");
@@ -582,29 +445,29 @@ namespace Granfeldt
         public string ReplaceWithMVValueOrBlank(string source, MVEntry mventry, string escapedCN)
         {
             source = Regex.Replace(source, @"#param:EscapedCN#", escapedCN ?? "", RegexOptions.IgnoreCase);
-
             MatchCollection mc = Regex.Matches(source, @"(?<=#mv\:)(?<attrname>\w+)#", RegexOptions.Compiled);
             foreach (Match match in mc)
             {
-                string newValue = mventry[match.Value.Trim('#')].IsPresent ? mventry[match.Value.Trim('#')].Value : "";
-                Log("Match", newValue);
-                source = Regex.Replace(source, string.Format(@"#mv\:{0}", match.Value), mventry[match.Value.Trim('#')].Value);
+                string matchValue = match.Value.Trim('#');
+                string newValue = mventry[matchValue].IsPresent ? mventry[matchValue].Value : "";
+                trace.TraceInformation("replaced '{0}' with '{1}'", matchValue, newValue);
+                source = Regex.Replace(source, string.Format(@"#mv\:{0}", match.Value), mventry[matchValue].Value);
             }
             return source;
         }
+
         public void SetupInitialValues(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
+            trace.TraceEvent(TraceEventType.Information, 0, "enter-setupinitialvalues");
             try
             {
-                Log(EntryPointAction.Enter);
                 foreach (AttributeFlowBase attributeBase in connectorRule.InitialFlows)
                 {
-                    #region Guid
                     if (attributeBase.GetType() == typeof(AttributeFlowGuid))
                     {
                         AttributeFlowGuid attribute = (AttributeFlowGuid)attributeBase;
                         Guid newGuid = Guid.NewGuid();
-                        Log("\tNew GUID '" + newGuid.ToString() + "' to CS '" + attribute.Target + "'");
+                        trace.TraceInformation("New GUID {0} to {1}", newGuid.ToString(), attribute.Target);
 
                         if (attribute.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                             csentry.DN = csentry.MA.CreateDN(newGuid.ToString());
@@ -612,9 +475,7 @@ namespace Granfeldt
                             csentry[attribute.Target].Value = newGuid.ToString();
                         continue;
                     }
-                    #endregion
 
-                    #region Attribute
                     if (attributeBase.GetType() == typeof(AttributeFlowAttribute))
                     {
                         AttributeFlowAttribute attrFlow = (AttributeFlowAttribute)attributeBase;
@@ -635,18 +496,15 @@ namespace Granfeldt
 
                         TargetValue = (string.IsNullOrEmpty(attrFlow.Prefix)) ? TargetValue : attrFlow.Prefix + TargetValue;
 
-                        Log("\tFlow value from MV '" + attrFlow.Source + "' to '" + attrFlow.Target + "'");
-                        Log("\tSource value: '" + mventry[attrFlow.Source].Value + "'");
-                        Log("\tTarget value: '" + TargetValue + "'");
+                        trace.TraceInformation("Flow source value: '" + mventry[attrFlow.Source].Value + "'");
+                        trace.TraceInformation("Target value: '" + TargetValue + "'");
                         if (attrFlow.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                             csentry.DN = csentry.MA.CreateDN(TargetValue);
                         else
                             csentry[attrFlow.Target].Value = TargetValue;
                         continue;
                     }
-                    #endregion
 
-                    #region Constant
                     if (attributeBase.GetType() == typeof(AttributeFlowConstant))
                     {
                         AttributeFlowConstant attrFlow = (AttributeFlowConstant)attributeBase;
@@ -655,28 +513,26 @@ namespace Granfeldt
                         string replacedValue = null;
                         if (string.IsNullOrEmpty(attrFlow.EscapedCN))
                         {
-                            Log("\tNo CN to escape");
+                            trace.TraceInformation("No CN to escape");
                             replacedValue = ReplaceWithMVValueOrBlank(attrFlow.Constant, mventry);
                         }
                         else
                         {
                             escapedCN = ma.EscapeDNComponent(ReplaceWithMVValueOrBlank(attrFlow.EscapedCN, mventry, "")).ToString();
-                            Log("\tEscapedCN", escapedCN);
+                            trace.TraceInformation("EscapedCN", escapedCN);
                             replacedValue = ReplaceWithMVValueOrBlank(attrFlow.Constant, mventry, escapedCN);
                         }
-                        Log("\tFlow constant '" + replacedValue + "' to '" + attrFlow.Target + "'");
+                        trace.TraceInformation("Flow constant '{0}' to {1}", replacedValue, attrFlow.Target);
                         if (attrFlow.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                             csentry.DN = csentry.MA.CreateDN(replacedValue);
                         else
                             csentry[(attrFlow.Target)].Value = replacedValue;
                         continue;
                     }
-                    #endregion
 
-                    #region  Concatenate
                     if (attributeBase.GetType() == typeof(AttributeFlowConcatenate))
                     {
-                        Log("Building concatenated value");
+                        trace.TraceInformation("Building concatenated value");
                         AttributeFlowConcatenate attrFlow = (AttributeFlowConcatenate)attributeBase;
                         string concatValue = null;
                         foreach (SourceExpressionBase sourceExpression in attrFlow.SourceExpressions)
@@ -685,21 +541,21 @@ namespace Granfeldt
                             {
                                 SourceExpressionConstant sourceExpr = (SourceExpressionConstant)sourceExpression;
                                 string replacedValue = ReplaceWithMVValueOrBlank(sourceExpr.Source, mventry);
-                                Log("\tAdding constant '" + replacedValue + "' to concatenated value");
+                                trace.TraceInformation("Adding constant '{0}'", replacedValue);
                                 concatValue = concatValue + replacedValue;
                                 continue;
                             }
                             if (sourceExpression.GetType() == typeof(SourceExpressionRegexReplace))
                             {
                                 SourceExpressionRegexReplace sourceExpr = (SourceExpressionRegexReplace)sourceExpression;
-                                Log("\tAdding RegEx replacement '" + sourceExpr.Source + "' to concatenated value");
+                                trace.TraceInformation("Adding RegEx replacement '{0}'", sourceExpr.Source);
                                 if (mventry[sourceExpr.Source].IsPresent)
                                 {
                                     concatValue = concatValue + Regex.Replace(mventry[sourceExpr.Source].Value, sourceExpr.Pattern, sourceExpr.Replacement);
                                 }
                                 else
                                 {
-                                    Log(new Exception("Attribute '" + sourceExpr.Source + "' is not present in metaverse", new Exception("")));
+                                    trace.TraceEvent(TraceEventType.Error, 1, "Attribute '" + sourceExpr.Source + "' is not present in metaverse");
                                 }
                                 continue;
                             }
@@ -708,34 +564,33 @@ namespace Granfeldt
                                 SourceExpressionAttribute attr = (SourceExpressionAttribute)sourceExpression;
                                 if (mventry[attr.Source].IsPresent)
                                 {
-                                    Log("\tAdding value of MV::" + attr.Source + "::'" + mventry[attr.Source].Value.ToString() + "' to concatenated value");
+                                    trace.TraceInformation("Adding value of MV::{0} '{1}'", attr.Source, mventry[attr.Source].Value);
                                     concatValue = concatValue + mventry[attr.Source].Value.ToString();
                                 }
                                 else
                                 {
-                                    Log(new Exception("Attribute '" + attr.Source + "' is not present in metaverse", new Exception("")));
+                                    trace.TraceEvent(TraceEventType.Error, 1, "Attribute '" + attr.Source + "' is not present in metaverse");
                                 }
                                 continue;
                             }
                         }
-                        Log("Flow concatenated attribute value '" + concatValue + "' to '" + attrFlow.Target + "'");
+                        trace.TraceInformation("Flow concatenated attribute value '{0}' to {1}", concatValue, attrFlow.Target);
                         if (attrFlow.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                             csentry.DN = csentry.MA.CreateDN(concatValue);
                         else
                             csentry[(attrFlow.Target)].Value = concatValue;
                         continue;
                     }
-                    #endregion
                 }
             }
             catch (Exception ex)
             {
-                Log(ex);
-                throw ex;
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
+                throw;
             }
             finally
             {
-                Log(EntryPointAction.Leave);
+                trace.TraceEvent(TraceEventType.Information, 0, "exit-setupinitialvalues");
             }
         }
     }

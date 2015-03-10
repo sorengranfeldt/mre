@@ -2,14 +2,14 @@
 <RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <DisableAllRules>false</DisableAllRules>
   <Rules>
-    <Rule>
+    <!--<Rule>
       <Name>rename active user without adou</Name>
       <Description></Description>
       <TargetManagementAgentName>ad</TargetManagementAgentName>
       <Enabled>true</Enabled>
       <SourceObject>person</SourceObject>
       <TargetObject>user</TargetObject>
-      <Action>rename</Action>
+      <Action>Rename</Action>
       <ConditionalRename>
         <NewDNValue>CN=#mv:displayName# (#mv:accountName#),OU=Full Time Employees,DC=contoso,DC=com</NewDNValue>
         <DNAttribute>[DN]</DNAttribute>
@@ -29,16 +29,16 @@
           </ConditionBase>
         </Conditions>
       </ConditionalRename>
-    </Rule>
+    </Rule>-->
 
-    <Rule>
+    <!--<Rule>
       <Name>Provision group ==> AI</Name>
       <Description></Description>
       <TargetManagementAgentName>AI</TargetManagementAgentName>
       <Enabled>true</Enabled>
       <SourceObject>group</SourceObject>
       <TargetObject>group</TargetObject>
-      <Action>provision</Action>
+      <Action>Provision</Action>
       <RenameDnFlow>
       </RenameDnFlow>
       <Conditions>
@@ -54,16 +54,16 @@
           <Target>[DN]</Target>
         </AttributeFlowBase>
       </InitialFlows>
-    </Rule>
+    </Rule>-->
 
-    <Rule>
+    <!--<Rule>
       <Name>Provision Person ==> AI</Name>
       <Description></Description>
       <TargetManagementAgentName>AI</TargetManagementAgentName>
       <Enabled>true</Enabled>
       <SourceObject>person</SourceObject>
       <TargetObject>user</TargetObject>
-      <Action>provision</Action>
+      <Action>Provision</Action>
       <RenameDnFlow>
       </RenameDnFlow>
       <Conditions>
@@ -82,33 +82,7 @@
           <Constant>#mv:hrId#</Constant>
           <Target>[DN]</Target>
         </AttributeFlowBase>
-
-        <!-- AttributeFlowBase xsi:type="AttributeFlowAttribute">
-          <Source>accountName</Source>
-          <LowercaseTargetValue>true</LowercaseTargetValue>
-          <UppercaseTargetValue>false</UppercaseTargetValue>
-          <TrimTargetValue>false</TrimTargetValue>
-          <Target>[DN]</Target>
-        </AttributeFlowBase -->
-        <!-- AttributeFlowBase xsi:type="AttributeFlowConcatenate">
-          <SourceExpressions>
-            <SourceExpressionBase xsi:type="SourceExpressionAttribute">
-              <Source>givenName</Source>
-            </SourceExpressionBase>
-            <SourceExpressionBase xsi:type="SourceExpressionConstant">
-              <Source>-</Source>
-            </SourceExpressionBase>
-            <SourceExpressionBase xsi:type="SourceExpressionAttribute">
-              <Source>accountName</Source>
-            </SourceExpressionBase>
-          </SourceExpressions>
-          <Target>[DN]</Target>
-        </AttributeFlowBase -->
-
-        <!-- AttributeFlowBase xsi:type="AttributeFlowGuid">
-          <Target>[DN]</Target>
-        </AttributeFlowBase -->
       </InitialFlows>
-    </Rule>
+    </Rule>-->
   </Rules>
 </RulesFile>
