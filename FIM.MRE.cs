@@ -33,6 +33,8 @@
 // march 10, 2015 | soren granfeldt
 //  -marked RenameConnector as obsolete
 //  -moved condition logic to the classes
+// march 11, 2015 | Ryan Newington
+//  - updated registry key logic
 
 using Microsoft.MetadirectoryServices;
 using Microsoft.Win32;
@@ -65,34 +67,31 @@ namespace Granfeldt
             {
                 trace = new TraceSource(TraceSourceName, SourceLevels.All);
                 trace.TraceEvent(TraceEventType.Information, 0, "enter-initialize");
-                try
+
+                RegistryKey machineRegistry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+                RegistryKey mreRootKey = machineRegistry.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false);
+
+                if (mreRootKey != null)
                 {
-                    RegistryKey machineRegistry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32);
+                    string logFileValue = mreRootKey.GetValue("DebugLogFileName", null) as string;
+                    if (logFileValue != null)
+                    {
+                        DebugLogFilename = string.Format(logFileValue, DateTime.Now);
 
-                    DebugLogFilename = machineRegistry.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false).GetValue("DebugLogFilename", null).ToString();
-                    DebugLogFilename = string.Format(DebugLogFilename, DateTime.Now);
+                        TextWriterTraceListener i = new TextWriterTraceListener(Path.ChangeExtension(DebugLogFilename, ".log"), TraceSourceName);
+                        i.TraceOutputOptions = TraceOptions.DateTime;
+                        i.Filter = new EventTypeFilter(SourceLevels.All);
+                        StreamWriter sw = i.Writer as StreamWriter;
+                        if (sw != null) sw.AutoFlush = true;
+                        trace.Listeners.Add(i);
 
-                    TextWriterTraceListener i = new TextWriterTraceListener(Path.ChangeExtension(DebugLogFilename, ".log"), TraceSourceName);
-                    i.TraceOutputOptions = TraceOptions.DateTime;
-                    i.Filter = new EventTypeFilter(SourceLevels.All);
-                    StreamWriter sw = i.Writer as StreamWriter;
-                    if (sw != null) sw.AutoFlush = true;
-                    trace.Listeners.Add(i);
-
-                    TextWriterTraceListener el = new TextWriterTraceListener(Path.ChangeExtension(DebugLogFilename, ".errors.log"), TraceSourceName);
-                    el.TraceOutputOptions = TraceOptions.DateTime | TraceOptions.Callstack;
-                    el.Filter = new EventTypeFilter(SourceLevels.Critical | SourceLevels.Error | SourceLevels.Warning);
-                    StreamWriter elstream = el.Writer as StreamWriter;
-                    if (elstream != null) elstream.AutoFlush = true;
-                    trace.Listeners.Add(el);
-                }
-                catch (System.NullReferenceException ex)
-                {
-                    // we get here if key og hive doesn't exist which is perfectly okay
-                    // i have yet to find a better method for determining whether 
-                    // a specific registry exists or not to avoid using this
-                    // try/catch thingy
-                    trace.TraceInformation("no-logging-file-specified {0}", ex.Message);
+                        TextWriterTraceListener el = new TextWriterTraceListener(Path.ChangeExtension(DebugLogFilename, ".errors.log"), TraceSourceName);
+                        el.TraceOutputOptions = TraceOptions.DateTime | TraceOptions.Callstack;
+                        el.Filter = new EventTypeFilter(SourceLevels.Critical | SourceLevels.Error | SourceLevels.Warning);
+                        StreamWriter elstream = el.Writer as StreamWriter;
+                        if (elstream != null) elstream.AutoFlush = true;
+                        trace.Listeners.Add(el);
+                    }
                 }
 
                 string extensionsDirectory = Utils.ExtensionsDirectory;
@@ -135,7 +134,7 @@ namespace Granfeldt
             }
             catch (Exception ex)
             {
-                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.InnerException.Message);
+                trace.TraceEvent(TraceEventType.Error, ex.HResult, ex.Message);
                 throw;
             }
             finally
