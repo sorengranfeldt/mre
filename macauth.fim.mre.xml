@@ -11,7 +11,7 @@
 			<TargetObject>user</TargetObject>
 			<Action>Rename</Action>
 			<ConditionalRename>
-				<NewDNValue>CN=#mv:accountName#,OU=Active,OU=DHCP Managed,OU=REGSJMacAuth,DC=regsj,DC=intern</NewDNValue>
+				<NewDNValue>CN=#mv:accountName#,OU=Active,OU=DHCP Managed,OU=REGSJMacAuth,DC=contoso,DC=com</NewDNValue>
 				<DNAttribute>[DN]</DNAttribute>
 				<Conditions Operator="Or">
 					<ConditionBase xsi:type="SubCondition" Operator="And">
@@ -48,7 +48,7 @@
 			<TargetObject>user</TargetObject>
 			<Action>Rename</Action>
 			<ConditionalRename>
-				<NewDNValue>CN=#mv:accountName#,OU=InActive,OU=DHCP Managed,OU=REGSJMacAuth,DC=regsj,DC=intern</NewDNValue>
+				<NewDNValue>CN=#mv:accountName#,OU=InActive,OU=DHCP Managed,OU=REGSJMacAuth,DC=contoso,DC=com</NewDNValue>
 				<DNAttribute>[DN]</DNAttribute>
 				<Conditions Operator="Or">
 					<ConditionBase xsi:type="ConditionIsPresent">
