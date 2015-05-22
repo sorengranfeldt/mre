@@ -1,0 +1,265 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xs:schema elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="MVEngine" nillable="true" type="MVEngine" />
+  <xs:complexType name="MVEngine" />
+  <xs:element name="MVRules" nillable="true" type="MVRules" />
+  <xs:complexType name="MVRules" />
+  <xs:element name="RulesFile" nillable="true" type="RulesFile" />
+  <xs:complexType name="RulesFile">
+    <xs:all>
+      <xs:element minOccurs="1" maxOccurs="1" name="DisableAllRules" type="xs:boolean" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Rules" type="ArrayOfRule" />
+    </xs:all>
+  </xs:complexType>
+  <xs:complexType name="ArrayOfRule">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="Rule" nillable="true" type="Rule" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="Rule">
+    <xs:all>
+      <xs:element minOccurs="1" maxOccurs="1" name="Enabled" type="xs:boolean" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Name" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Description" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Conditions" type="Conditions" />
+      <xs:element minOccurs="0" maxOccurs="1" name="InitialFlows" type="ArrayOfAttributeFlowBase" />
+      <xs:element minOccurs="0" maxOccurs="1" name="RenameDnFlow" type="RenameDnFlow" />
+      <xs:element minOccurs="0" maxOccurs="1" name="ConditionalRename" type="RenameAction" />
+      <xs:element minOccurs="0" maxOccurs="1" name="SourceObject" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="TargetManagementAgentName" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="TargetObject" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="TargetObjectAdditionalClasses" type="xs:string" />
+      <xs:element minOccurs="1" maxOccurs="1" name="Action" type="RuleAction" />
+    </xs:all>
+  </xs:complexType>
+  <xs:complexType name="Conditions">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="ConditionBase" type="ConditionBase" />
+    </xs:sequence>
+    <xs:attribute name="Operator" type="ConditionOperator" use="optional" />
+  </xs:complexType>
+  <xs:complexType name="ConditionBase">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" name="Description" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="SubCondition">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="unbounded" name="ConditionBase" type="ConditionBase" />
+        </xs:sequence>
+        <xs:attribute name="Operator" type="ConditionOperator" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:simpleType name="ConditionOperator">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="And" />
+      <xs:enumeration value="Or" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:complexType name="ConditionMatch">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="MVAttribute" type="xs:string" />
+          <xs:element minOccurs="0" maxOccurs="1" name="Pattern" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionIsNotPresent">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="MVAttribute" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionIsPresent">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="MVAttribute" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionNotConnectedTo">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="ManagementAgentName" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionConnectedTo">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="ManagementAgentName" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionAttributeIsNotPresent">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="MVAttribute" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionNotMatch">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="MVAttribute" type="xs:string" />
+          <xs:element minOccurs="0" maxOccurs="1" name="Pattern" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ConditionAttributeIsPresent">
+    <xs:complexContent mixed="false">
+      <xs:extension base="ConditionBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="MVAttribute" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ArrayOfAttributeFlowBase">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="AttributeFlowBase" nillable="true" type="AttributeFlowBase" />
+    </xs:sequence>
+</xs:complexType>
+  <xs:complexType name="AttributeFlowBase">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" name="Description" type="xs:string" />
+      <xs:element minOccurs="1" maxOccurs="1" name="Target" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="AttributeFlowGuid">
+    <xs:complexContent mixed="false">
+      <xs:extension base="AttributeFlowBase" />
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="AttributeFlowConcatenate">
+    <xs:complexContent mixed="false">
+      <xs:extension base="AttributeFlowBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="SourceExpressions" type="ArrayOfSourceExpressionBase" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="ArrayOfSourceExpressionBase">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="unbounded" name="SourceExpressionBase" nillable="true" type="SourceExpressionBase" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="SourceExpressionBase">
+    <xs:sequence>
+      <xs:element minOccurs="0" maxOccurs="1" name="Source" type="xs:string" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="SourceExpressionAttribute">
+    <xs:complexContent mixed="false">
+      <xs:extension base="SourceExpressionBase" />
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="SourceExpressionConstant">
+    <xs:complexContent mixed="false">
+      <xs:extension base="SourceExpressionBase" />
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="SourceExpressionRegexReplace">
+    <xs:complexContent mixed="false">
+      <xs:extension base="SourceExpressionBase">
+        <xs:sequence>
+          <xs:element minOccurs="1" maxOccurs="1" name="Pattern" type="xs:string" />
+          <xs:element minOccurs="1" maxOccurs="1" name="Replacement" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="AttributeFlowConstant">
+    <xs:complexContent mixed="false">
+      <xs:extension base="AttributeFlowBase">
+        <xs:sequence>
+          <xs:element minOccurs="0" maxOccurs="1" name="EscapedCN" type="xs:string" />
+          <xs:element minOccurs="0" maxOccurs="1" name="Constant" type="xs:string" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="AttributeFlowAttribute">
+    <xs:complexContent mixed="false">
+      <xs:extension base="AttributeFlowBase">
+        <xs:sequence minOccurs="0" maxOccurs="unbounded">
+          <xs:element minOccurs="0" maxOccurs="1" name="Prefix" type="xs:string" />
+          <xs:element minOccurs="0" maxOccurs="1" name="Source" type="xs:string" />
+          <xs:element minOccurs="0" maxOccurs="1" name="LowercaseTargetValue" type="xs:boolean" />
+          <xs:element minOccurs="0" maxOccurs="1" name="UppercaseTargetValue" type="xs:boolean" />
+          <xs:element minOccurs="0" maxOccurs="1" name="TrimTargetValue" type="xs:boolean" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:complexType name="RenameDnFlow">
+    <xs:all>
+      <xs:element minOccurs="0" maxOccurs="1" name="ReprovisionOnRename" type="xs:boolean" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Source" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Target" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="OnlyRenameOnRegularExpressionMatch" type="xs:boolean" />
+      <xs:element minOccurs="0" maxOccurs="1" name="RegExMVAttributeName" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="RegExFilter" type="xs:string" />
+    </xs:all>
+  </xs:complexType>
+  <xs:complexType name="RenameAction">
+    <xs:all>
+      <xs:element minOccurs="0" maxOccurs="1" name="EscapedCN" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="NewDNValue" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="DNAttribute" type="xs:string" />
+      <xs:element minOccurs="0" maxOccurs="1" name="Conditions" type="Conditions" />
+    </xs:all>
+  </xs:complexType>
+  <xs:simpleType name="RuleAction">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Provision" />
+      <xs:enumeration value="Deprovision" />
+      <xs:enumeration value="DeprovisionAll" />
+      <xs:enumeration value="Rename" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="RuleAction" type="RuleAction" />
+  <xs:element name="Rule" nillable="true" type="Rule" />
+  <xs:element name="RenameAction" nillable="true" type="RenameAction" />
+  <xs:element name="RenameDnFlow" nillable="true" type="RenameDnFlow" />
+  <xs:element name="SourceExpressionBase" nillable="true" type="SourceExpressionBase" />
+  <xs:element name="SourceExpressionAttribute" nillable="true" type="SourceExpressionAttribute" />
+  <xs:element name="SourceExpressionConstant" nillable="true" type="SourceExpressionConstant" />
+  <xs:element name="SourceExpressionRegexReplace" nillable="true" type="SourceExpressionRegexReplace" />
+  <xs:element name="ConditionOperator" type="ConditionOperator" />
+  <xs:element name="Conditions" nillable="true" type="Conditions" />
+  <xs:element name="ConditionBase" nillable="true" type="ConditionBase" />
+  <xs:element name="ConditionIsPresent" nillable="true" type="ConditionIsPresent" />
+  <xs:element name="ConditionIsNotPresent" nillable="true" type="ConditionIsNotPresent" />
+  <xs:element name="ConditionMatch" nillable="true" type="ConditionMatch" />
+  <xs:element name="ConditionNotMatch" nillable="true" type="ConditionNotMatch" />
+  <xs:element name="ConditionConnectedTo" nillable="true" type="ConditionConnectedTo" />
+  <xs:element name="ConditionNotConnectedTo" nillable="true" type="ConditionNotConnectedTo" />
+  <xs:element name="SubCondition" nillable="true" type="SubCondition" />
+  <xs:element name="ConditionAttributeIsPresent" nillable="true" type="ConditionAttributeIsPresent" />
+  <xs:element name="ConditionAttributeIsNotPresent" nillable="true" type="ConditionAttributeIsNotPresent" />
+  <xs:element name="AttributeFlowBase" nillable="true" type="AttributeFlowBase" />
+  <xs:element name="AttributeFlowConcatenate" nillable="true" type="AttributeFlowConcatenate" />
+  <xs:element name="AttributeFlowConstant" nillable="true" type="AttributeFlowConstant" />
+  <xs:element name="AttributeFlowGuid" nillable="true" type="AttributeFlowGuid" />
+  <xs:element name="AttributeFlowAttribute" nillable="true" type="AttributeFlowAttribute" />
+</xs:schema>
