@@ -84,7 +84,9 @@ namespace Granfeldt
         public Conditions Conditions;
         public List<AttributeFlowBase> InitialFlows;
 
+#pragma warning disable 0612, 0618
         public RenameDnFlow RenameDnFlow = null;
+#pragma warning restore 0612, 0618
         public RenameAction ConditionalRename = null;
 
         public string SourceObject;
@@ -102,18 +104,27 @@ namespace Granfeldt
     public class RenameAction
     {
         public string EscapedCN;
+        
         /// <summary>
         /// Use #mv:??# notation
         /// </summary>
         public string NewDNValue = null;
+
         /// <summary>
         /// Specify metaverse attribute name or [DN]
         /// </summary>
         public string DNAttribute = null;
+
+        /// <summary>
+        /// Indicates whether the rename evaluation compares the old and new values as a plain string or an RFC-compliant DN
+        /// </summary>
+        public bool StrictDNCompare = false;
+
         /// <summary>
         /// Conditions that must be met for renaming to take place
         /// </summary>
         public Conditions Conditions;
+
         public RenameAction()
         {
             this.Conditions = new Conditions();
@@ -233,7 +244,7 @@ namespace Granfeldt
             }
         }
     }
-
+#pragma warning disable 0612, 0618
     [XmlInclude(typeof(ConditionAttributeIsPresent)), XmlInclude(typeof(ConditionMatch)), XmlInclude(typeof(ConditionNotMatch)), XmlInclude(typeof(ConditionAttributeIsNotPresent)), XmlInclude(typeof(ConditionConnectedTo)), XmlInclude(typeof(ConditionNotConnectedTo)), XmlIncludeAttribute(typeof(ConditionIsPresent)), XmlIncludeAttribute(typeof(ConditionIsNotPresent)), XmlInclude(typeof(SubCondition))]
     public class ConditionBase
     {
@@ -244,6 +255,7 @@ namespace Granfeldt
             return true;
         }
     }
+#pragma warning restore 0612, 0618
 
     public class ConditionIsPresent : ConditionBase
     {
