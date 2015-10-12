@@ -1,0 +1,587 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Rules>
+		<!-- AI begin -->
+		<Rule>
+			<Name>rename enabled user</Name>
+			<Description></Description>
+			<TargetManagementAgentName>ad</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Rename</Action>
+			<ConditionalRename>
+				<EscapedCN>CN=#mv:displayName#</EscapedCN>
+				<NewDNValue>#param:EscapedCN#,#mv:ou#</NewDNValue>
+				<DNAttribute>[DN]</DNAttribute>
+				<Conditions>
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description></Description>
+						<MVAttribute>displayName</MVAttribute>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description></Description>
+						<MVAttribute>ou</MVAttribute>
+					</ConditionBase>
+				</Conditions>
+			</ConditionalRename>
+		</Rule>
+
+		<Rule>
+			<Name>rename disabled user</Name>
+			<Description></Description>
+			<TargetManagementAgentName>ad</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Rename</Action>
+			<ConditionalRename>
+				<NewDNValue>CN=#mv:lastName#\, #mv:firstNameWithMiddleName# (#mv:accountName#) (Disabled by FIM),OU=Disabled Users,#mv:domainNamingContext#</NewDNValue>
+				<DNAttribute>[DN]</DNAttribute>
+				<Conditions>
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description></Description>
+						<MVAttribute>displayName</MVAttribute>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description></Description>
+						<MVAttribute>accountName</MVAttribute>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description></Description>
+						<MVAttribute>domainNamingContext</MVAttribute>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionMatch">
+						<Description></Description>
+						<MVAttribute>hrIsActive</MVAttribute>
+						<Pattern>^false$</Pattern>
+					</ConditionBase>
+				</Conditions>
+			</ConditionalRename>
+		</Rule>
+
+		<Rule>
+			<Name>Provision Person ==> AI</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AI MA</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>Identities</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>Check if isSAPUser is Y</Description>
+					<MVAttribute>isSAPUser</MVAttribute>
+					<Pattern>^Y$</Pattern>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowGuid">
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<Constant>Primary</Constant>
+					<Target>IDENTITYTYPE</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<Constant>Employee</Constant>
+					<Target>IDENTITYCATEGORY</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<Constant>ROOT</Constant>
+					<Target>OUREF</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Deprovision Person ==> AI</Name>
+			<Description>If the user is deleted from HR, the user should be deproved in AI</Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AI MA</TargetManagementAgentName>
+			<Enabled>false</Enabled>
+			<Enabled>false</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>Identities</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>User no longer exists in HR</Description>
+					<MVAttribute>exists910</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Deprovision Person ==> AI</Name>
+			<Description>If the user matches the SAP filter, the user should be deproved in AI</Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AI MA</TargetManagementAgentName>
+			<Enabled>false</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>Identities</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>Only if isSAPUser is populated</Description>
+					<MVAttribute>isSAPUser</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>Check if isSAPUser contains N</Description>
+					<MVAttribute>isSAPUser</MVAttribute>
+					<Pattern>^N$</Pattern>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Provision sapHrOU ==> AI</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AI MA master data</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>sapHrOU</SourceObject>
+			<TargetObject>Org. units</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>sapHrOUID</Source>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>sapHrOUID</Source>
+					<Target>OUID</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Deprovision sapHrOU ==> AI</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AI MA master data</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>sapHrOU</SourceObject>
+			<TargetObject>Org. units</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description></Description>
+					<MVAttribute>sapHROUID</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Provision sapHrJob ==> AI</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AI MA master data</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>sapHrJob</SourceObject>
+			<TargetObject>Job</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>sapHrJobID</Source>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>sapHrJobID</Source>
+					<Target>IDENT</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<!-- AI end -->
+
+		<!-- SAP begin -->
+		<Rule>
+			<Name>Provision user ==> SAP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">SAP CUA</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>Must have sapCuaUserId</Description>
+					<MVAttribute>sapCuaUserId</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>Must have SAPUserGroup</Description>
+					<MVAttribute>SAPUserGroup</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>IdentityStatus should be set to Active by AI</Description>
+					<MVAttribute>identityStatus</MVAttribute>
+					<Pattern>^Active$</Pattern>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowGuid">
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>sapCuaUserId</Source>
+					<Target>BNAME</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<Constant>A</Constant>
+					<Target>USTYP</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConcatenate">
+					<SourceExpressions>
+						<SourceExpressionBase xsi:type="SourceExpressionConstant">
+							<Source>.</Source>
+						</SourceExpressionBase>
+						<SourceExpressionBase xsi:type="SourceExpressionAttribute">
+							<Source>sapCuaUserId</Source>
+						</SourceExpressionBase>
+					</SourceExpressions>
+					<Target>export_password</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Deprovision Person ==> SAP</Name>
+			<Description>If the user is not active in AI, delete/deprov from SAP</Description>
+			<TargetManagementAgentName xsi:type="xsd:string">SAP CUA</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>Must have identityStatus (from AI;means that its handled by AI and not a explicit created SAP user)</Description>
+					<MVAttribute>identityStatus</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>Check if identityStatus is anything else than 'Active'</Description>
+					<MVAttribute>identityStatus</MVAttribute>
+					<Pattern>^(?!Active$)</Pattern>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<!-- SAP end -->
+
+		<!-- intranet begin -->
+		<Rule>
+			<Name>Provision Person ==> intranet</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">intranet</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>User</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description></Description>
+					<MVAttribute>UID</MVAttribute>
+					<Pattern>.</Pattern>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>Check if displayName does not start with OLD -</Description>
+					<MVAttribute>displayName</MVAttribute>
+					<Pattern>^(?!OLD -)</Pattern>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description></Description>
+					<MVAttribute>ObjectGUID</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowConcatenate">
+					<SourceExpressions>
+						<SourceExpressionBase xsi:type="SourceExpressionAttribute">
+							<Source>UID</Source>
+						</SourceExpressionBase>
+					</SourceExpressions>
+					<Target>spKey</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConcatenate">
+					<SourceExpressions>
+						<SourceExpressionBase xsi:type="SourceExpressionConstant">
+							<Source>DS\</Source>
+						</SourceExpressionBase>
+						<SourceExpressionBase xsi:type="SourceExpressionAttribute">
+							<Source>UID</Source>
+						</SourceExpressionBase>
+					</SourceExpressions>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Deprovision Person ==> intranet</Name>
+			<Description>If the user is not in AD, delete/deprov from intranet</Description>
+			<TargetManagementAgentName xsi:type="xsd:string">intranet</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>Check if displayName does not start with OLD -</Description>
+					<MVAttribute>displayName</MVAttribute>
+					<Pattern>^(OLD -)</Pattern>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<!-- intranet end -->
+
+		<!-- ECP begin -->
+		<Rule>
+			<Name>Provision Person ==> ECP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ECP</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>If employeeId has a value</Description>
+					<MVAttribute>employeeId</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>employeeID</Source>
+					<Target>primaryKey</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Provision groups ==> ECP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ECP</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>group</SourceObject>
+			<TargetObject>group</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>uid</Source>
+					<Target>primaryKey</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Deprovision non-GSP groups from ECP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ECP</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>group</SourceObject>
+			<TargetObject>group</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>If it's a GSO group</Description>
+					<MVAttribute>uid</MVAttribute>
+					<Pattern>^GSO-|^GSC-</Pattern>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the group no longer exists in AD</Description>
+					<MVAttribute>groupType</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Deprovision groups without uid from ECP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ECP</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>group</SourceObject>
+			<TargetObject>group</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>The group has no uid</Description>
+					<MVAttribute>uid</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Deprovision GSP groups from ECP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ECP</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>group</SourceObject>
+			<TargetObject>group</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>If it's a GSP group</Description>
+					<MVAttribute>uid</MVAttribute>
+					<Pattern>^GSP-</Pattern>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the group no longer exists in HR</Description>
+					<MVAttribute>exists910</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Deprovision person from ECP</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ECP</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the user no longer exists in HR</Description>
+					<MVAttribute>exists910</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the user no longer exists in AD</Description>
+					<MVAttribute>objectGuid</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and employeeID is missing (prevent deprovisioning of provisioned)</Description>
+					<MVAttribute>employeeID</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<!-- ECP end -->
+
+		<!-- AD begin-->
+		<Rule>
+			<Name>Provision GSP groups ==> AD</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AD</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>group</SourceObject>
+			<TargetObject>group</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>Only if expectedDN is populated</Description>
+					<MVAttribute>expectedDN</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>expectedDN</Source>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>uid</Source>
+					<Target>sAMAccountName</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Provision person ==> AD</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AD</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>If expectedDn has a value</Description>
+					<MVAttribute>expectedDn</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>Check if isLanUser contains Y, and provision to AD MA if so</Description>
+					<MVAttribute>exists910</MVAttribute>
+					<Pattern>^y$</Pattern>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>expectedDN</Source>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>unicodePwd</Source>
+					<Target>unicodePwd</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>employeeId</Source>
+					<Target>employeeId</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>pwdLastSet</Source>
+					<Target>pwdLastSet</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>initialUserAccountControl</Source>
+					<Target>userAccountControl</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<Rule>
+			<Name>Deprovision GSP groups from AD</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">AD</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>group</SourceObject>
+			<TargetObject>group</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionMatch">
+					<Description>If it's a GSP group</Description>
+					<MVAttribute>uid</MVAttribute>
+					<Pattern>^GSP-</Pattern>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the group no longer exists in HR</Description>
+					<MVAttribute>exists910</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<!-- AD end-->
+
+		<!-- HomeDir begin-->
+		<Rule>
+			<Name>Deprovision person from HomeDir</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">HomeDir</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Deprovision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the user no longer exists in HR</Description>
+					<MVAttribute>exists910</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and expectedDN was recalled from ECP</Description>
+					<MVAttribute>expectedDN</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+					<Description>..and the user no longer exists in AD</Description>
+					<MVAttribute>objectGuid</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+		</Rule>
+		<Rule>
+			<Name>Provision Person ==> HomeDir</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">HomeDir</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Provision</Action>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>Only if expectedDN is populated</Description>
+					<MVAttribute>expectedDN</MVAttribute>
+				</ConditionBase>
+				<ConditionBase xsi:type="ConditionAttributeIsPresent">
+					<Description>If homeDirectory has a value</Description>
+					<MVAttribute>homeDirectory</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>employeeID</Source>
+					<Target>primaryKey</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+		<!-- HomeDir end -->
+	</Rules>
+</RulesFile>

@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Rules>
+     <Rule>
+      <Name>Deprovision Person ==>FIM</Name>
+      <Description>If the user is deleted from AD, the user should be deproved in FIM</Description>
+      <TargetManagementAgentName xsi:type="xsd:string">FIM</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>person</SourceObject>
+      <TargetObject>person</TargetObject>
+      <Action>deprovision</Action>
+      <RenameDnFlow>
+      </RenameDnFlow>
+      <Conditions>
+        <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
+          <Description>User no longer exists in Online</Description>
+          <MVAttribute>objectSid</MVAttribute>
+        </ConditionBase>
+      </Conditions>
+    </Rule>
+  </Rules>
+</RulesFile>

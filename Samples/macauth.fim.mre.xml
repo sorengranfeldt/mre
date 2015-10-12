@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Rules>
+
+		<Rule>
+			<Name>rename active macauth user</Name>
+			<Description></Description>
+			<TargetManagementAgentName>ad-macauth</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>macAuthAccount</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Rename</Action>
+			<ConditionalRename>
+				<NewDNValue>CN=#mv:accountName#,OU=Active,OU=DHCP Managed,OU=REGSJMacAuth,DC=contoso,DC=com</NewDNValue>
+				<DNAttribute>[DN]</DNAttribute>
+				<Conditions Operator="Or">
+					<ConditionBase xsi:type="SubCondition" Operator="And">
+						<ConditionBase xsi:type="ConditionIsPresent">
+							<Description>accountName must be present</Description>
+							<MVAttribute>accountName</MVAttribute>
+						</ConditionBase>
+						<ConditionBase xsi:type="ConditionConnectedTo">
+							<ManagementAgentName>dhcp</ManagementAgentName>
+						</ConditionBase>
+						<ConditionBase xsi:type="SubCondition" Operator="And">
+							<ConditionBase xsi:type="ConditionConnectedTo">
+								<ManagementAgentName>subma</ManagementAgentName>
+							</ConditionBase>
+						</ConditionBase>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description>accountName must be present</Description>
+						<MVAttribute>accountName</MVAttribute>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionConnectedTo">
+						<ManagementAgentName>dhcp</ManagementAgentName>
+					</ConditionBase>
+				</Conditions>
+			</ConditionalRename>
+		</Rule>
+
+		<Rule>
+			<Name>rename inactive macauth user</Name>
+			<Description></Description>
+			<TargetManagementAgentName>ad-macauth</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>macAuthAccount</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Rename</Action>
+			<ConditionalRename>
+				<NewDNValue>CN=#mv:accountName#,OU=InActive,OU=DHCP Managed,OU=REGSJMacAuth,DC=contoso,DC=com</NewDNValue>
+				<DNAttribute>[DN]</DNAttribute>
+				<Conditions Operator="Or">
+					<ConditionBase xsi:type="ConditionIsPresent">
+						<Description>accountName must be present</Description>
+						<MVAttribute>accountName</MVAttribute>
+					</ConditionBase>
+					<ConditionBase xsi:type="ConditionNotConnectedTo">
+						<ManagementAgentName>ad-macauth</ManagementAgentName>
+					</ConditionBase>
+				</Conditions>
+			</ConditionalRename>
+		</Rule>
+	</Rules>
+</RulesFile>

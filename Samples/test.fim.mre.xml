@@ -1,0 +1,85 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Rules>
+		<Rule>
+			<Name>provision person to ad</Name>
+			<Description></Description>
+			<TargetManagementAgentName xsi:type="xsd:string">ad</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>user</TargetObject>
+			<Action>Provision</Action>
+			<Helpers>
+				<ScopedGuid Name="DNGuid"></ScopedGuid>
+				<Constant Name="Password">
+					<Value>TykkeDyr</Value>
+				</Constant>
+			</Helpers>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionIsPresent">
+					<Description></Description>
+					<MVAttribute>accountName</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<EscapedCN>CN=#mv:accountName#</EscapedCN>
+					<Constant>#param:EscapedCN#,OU=Users,OU=Organization,DC=contoso,DC=com</Constant>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowGuid">
+					<Target>description</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<Constant>#helper:Password#</Constant>
+					<Target>unicodePwd</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowConstant">
+					<Constant>512</Constant>
+					<Target>userAccountControl</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>accountName</Source>
+					<Target>sAMAccountName</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+
+		<Rule>
+			<RuleId>1</RuleId>
+			<Name>person ==> SAP</Name>
+			<Description>Provision Person to SAP</Description>
+			<TargetManagementAgentName>SAPTEST</TargetManagementAgentName>
+			<Enabled>true</Enabled>
+			<SourceObject>person</SourceObject>
+			<TargetObject>person</TargetObject>
+			<Action>Provision</Action>
+			<Reprovision>
+				<ProvisionRuleId>1</ProvisionRuleId>
+				<Conditions>
+					<ConditionBase xsi:type="ConditionAreNotEqual">
+						<CSAttribute>ID</CSAttribute>
+						<MVAttribute>accountName</MVAttribute>
+					</ConditionBase>
+				</Conditions>
+			</Reprovision>
+			<Conditions>
+				<ConditionBase xsi:type="ConditionIsPresent">
+					<Description>accountName must be present</Description>
+					<MVAttribute>accountName</MVAttribute>
+				</ConditionBase>
+			</Conditions>
+			<InitialFlows>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>accountName</Source>
+					<Target>ID</Target>
+				</AttributeFlowBase>
+				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
+					<Source>accountName</Source>
+					<Target>[DN]</Target>
+				</AttributeFlowBase>
+			</InitialFlows>
+		</Rule>
+
+	</Rules>
+</RulesFile>
