@@ -12,8 +12,8 @@
       <RenameDnFlow>
       </RenameDnFlow>
       <Conditions>
-        <ConditionBase xsi:type="ConditionAttributeIsNotPresent">
-          <Description>User no longer exists in Online</Description>
+        <ConditionBase xsi:type="ConditionIsNotPresent">
+          <Description>User no longer exists in AD</Description>
           <MVAttribute>objectSid</MVAttribute>
         </ConditionBase>
       </Conditions>

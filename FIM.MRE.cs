@@ -47,7 +47,7 @@
 //  - disabled obsolete warnings within the MRE code itself
 // october 12, 2015 | soren granfeldt | 1.0.8.0
 //	- removed support for disabling all rules
-//	- added helper class for calculation initial flow values, like reusing guid and such. to be extended in later versions
+//	- added helper class for calculating initial flow values, like reusing guid and such. to be extended in later versions
 
 namespace Granfeldt
 {
