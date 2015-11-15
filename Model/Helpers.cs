@@ -17,7 +17,7 @@ namespace Granfeldt
 		[XmlAttribute]
 		[XmlTextAttribute()]
 		public string Name;
-		public virtual string GetValue { get; }
+        public virtual string GetValue { get; set; }
 		public virtual void Generate()
 		{
 			Trace.TraceInformation("helper-value name: {0}, value: {1}", Name, GetValue);
