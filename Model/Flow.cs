@@ -1,4 +1,7 @@
-﻿namespace Granfeldt
+﻿// october 30, 2015 | soren granfeldt
+//	-added possibility to use MV ObjectID in flow attribute
+
+namespace Granfeldt
 {
 	using Microsoft.MetadirectoryServices;
 	using System;
@@ -79,7 +82,9 @@
 				if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
 					csentry.DN = csentry.MA.CreateDN(concatValue);
 				else
+				{
 					csentry[(this.Target)].Value = concatValue;
+				}
 			}
 			catch (Exception ex)
 			{
@@ -187,27 +192,47 @@
 			try
 			{
 				string TargetValue;
-				if (mventry[this.Source].DataType == AttributeType.Binary)
+				if (Source.Equals("[MVObjectID]"))
 				{
-					TargetValue = BitConverter.ToString(mventry[this.Source].BinaryValue);
-					TargetValue = TargetValue.Replace("-", "");
+					Trace.TraceInformation("flow-source: mvobjectid, '{0}'", mventry.ObjectID);
+					if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
+					{
+						csentry.DN = csentry.DN = csentry.MA.CreateDN(mventry.ObjectID.ToString());
+					}
+					else
+					{
+						csentry[this.Target].BinaryValue = mventry.ObjectID.ToByteArray();
+					}
+					return;
 				}
 				else
 				{
-					TargetValue = mventry[this.Source].Value;
+					if (mventry[this.Source].DataType == AttributeType.Binary)
+					{
+						TargetValue = BitConverter.ToString(mventry[this.Source].BinaryValue);
+						TargetValue = TargetValue.Replace("-", "");
+					}
+					else
+					{
+						TargetValue = mventry[this.Source].Value;
+					}
+					if (this.LowercaseTargetValue) { TargetValue = TargetValue.ToLower(); }
+					if (this.UppercaseTargetValue) { TargetValue = TargetValue.ToUpper(); }
+					if (this.TrimTargetValue) { TargetValue = TargetValue.Trim(); }
+
+					TargetValue = (string.IsNullOrEmpty(this.Prefix)) ? TargetValue : this.Prefix + TargetValue;
+					Trace.TraceInformation("flow-source-value: '{0}'", mventry[this.Source].Value);
+
+					Trace.TraceInformation("target-value: '{0}'", TargetValue);
+					if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
+					{
+						csentry.DN = csentry.MA.CreateDN(TargetValue);
+					}
+					else
+					{
+						csentry[this.Target].Value = TargetValue;
+					}
 				}
-				if (this.LowercaseTargetValue) { TargetValue = TargetValue.ToLower(); }
-				if (this.UppercaseTargetValue) { TargetValue = TargetValue.ToUpper(); }
-				if (this.TrimTargetValue) { TargetValue = TargetValue.Trim(); }
-
-				TargetValue = (string.IsNullOrEmpty(this.Prefix)) ? TargetValue : this.Prefix + TargetValue;
-
-				Trace.TraceInformation("flow-source-value: '{0}'", mventry[this.Source].Value);
-				Trace.TraceInformation("target-value: '{0}'", TargetValue);
-				if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
-					csentry.DN = csentry.MA.CreateDN(TargetValue);
-				else
-					csentry[this.Target].Value = TargetValue;
 			}
 			catch (Exception ex)
 			{

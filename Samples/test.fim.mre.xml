@@ -12,7 +12,7 @@
 			<Helpers>
 				<ScopedGuid Name="DNGuid"></ScopedGuid>
 				<Constant Name="Password">
-					<Value>TykkeDyr</Value>
+					<Value>Passw0rd!</Value>
 				</Constant>
 			</Helpers>
 			<Conditions>
