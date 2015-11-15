@@ -123,6 +123,9 @@
     <Content Include="Samples\macauth.fim.mre.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Samples\sql.fim.mre.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Samples\test.fim.mre.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
