@@ -91,6 +91,7 @@
     <Compile Include="Model\Rename.cs" />
     <Compile Include="Model\Rule.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Tracer.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>

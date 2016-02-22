@@ -24,7 +24,7 @@ namespace Granfeldt
                 {
                     string matchValue = match.Value.Trim('#');
                     string newValue = helpers.FirstOrDefault(x => x.Name.Equals(matchValue, StringComparison.OrdinalIgnoreCase)).GetValue;
-                    Trace.TraceInformation("replaced-helper-value-'{0}'-with-'{1}'", matchValue, newValue);
+                    Tracer.TraceInformation("replaced-helper-value-'{0}'-with-'{1}'", matchValue, newValue);
                     source = Regex.Replace(source, string.Format(@"#helper\:{0}", match.Value), newValue);
                 }
             }
@@ -39,7 +39,7 @@ namespace Granfeldt
             {
                 string matchValue = match.Value.Trim('#');
                 string newValue = mventry[matchValue].IsPresent ? mventry[matchValue].Value : "";
-                Trace.TraceInformation("replaced-'{0}'-with-'{1}'", matchValue, newValue);
+                Tracer.TraceInformation("replaced-'{0}'-with-'{1}'", matchValue, newValue);
                 source = Regex.Replace(source, string.Format(@"#mv\:{0}", match.Value), mventry[matchValue].Value);
             }
             return source;

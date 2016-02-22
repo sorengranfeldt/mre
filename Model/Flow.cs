@@ -35,8 +35,8 @@ namespace Granfeldt
 
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
-            Trace.TraceInformation("enter-attributeflowconcatenate");
-            Trace.Indent();
+            Tracer.TraceInformation("enter-attributeflowconcatenate");
+            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
@@ -47,21 +47,21 @@ namespace Granfeldt
                     {
                         SourceExpressionConstant sourceExpr = (SourceExpressionConstant)sourceExpression;
                         string replacedValue = sourceExpr.Source.ReplaceWithMVValueOrBlank(mventry);
-                        Trace.TraceInformation("adding-constant-'{0}'", replacedValue);
+                        Tracer.TraceInformation("adding-constant-'{0}'", replacedValue);
                         concatValue = concatValue + replacedValue;
                         continue;
                     }
                     if (sourceExpression.GetType() == typeof(SourceExpressionRegexReplace))
                     {
                         SourceExpressionRegexReplace sourceExpr = (SourceExpressionRegexReplace)sourceExpression;
-                        Trace.TraceInformation("adding-regex-replacement-'{0}'", sourceExpr.Source);
+                        Tracer.TraceInformation("adding-regex-replacement-'{0}'", sourceExpr.Source);
                         if (mventry[sourceExpr.Source].IsPresent)
                         {
                             concatValue = concatValue + Regex.Replace(mventry[sourceExpr.Source].Value, sourceExpr.Pattern, sourceExpr.Replacement);
                         }
                         else
                         {
-                            Trace.TraceError("attribute-'{0}'-is-not-present-in-metaverse", sourceExpr.Source);
+                            Tracer.TraceError("attribute-'{0}'-is-not-present-in-metaverse", sourceExpr.Source);
                         }
                         continue;
                     }
@@ -70,17 +70,17 @@ namespace Granfeldt
                         SourceExpressionAttribute attr = (SourceExpressionAttribute)sourceExpression;
                         if (mventry[attr.Source].IsPresent)
                         {
-                            Trace.TraceInformation("adding-value-from-MV::'{0}'-to-'{1}'", attr.Source, mventry[attr.Source].Value);
+                            Tracer.TraceInformation("adding-value-from-MV::'{0}'-to-'{1}'", attr.Source, mventry[attr.Source].Value);
                             concatValue = concatValue + mventry[attr.Source].Value.ToString();
                         }
                         else
                         {
-                            Trace.TraceError("attribute-'{0}'-is-not-present-in-metaverse", attr.Source);
+                            Tracer.TraceError("attribute-'{0}'-is-not-present-in-metaverse", attr.Source);
                         }
                         continue;
                     }
                 }
-                Trace.TraceInformation("flow-concatenated-attribute-value-'{0}'-to-'{1}'", concatValue, this.Target);
+                Tracer.TraceInformation("flow-concatenated-attribute-value-'{0}'-to-'{1}'", concatValue, this.Target);
                 if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                     csentry.DN = csentry.MA.CreateDN(concatValue);
                 else
@@ -90,13 +90,13 @@ namespace Granfeldt
             }
             catch (Exception ex)
             {
-                Trace.TraceError("error {0}", ex.GetBaseException());
+                Tracer.TraceError("error {0}", ex.GetBaseException());
                 throw;
             }
             finally
             {
-                Trace.Unindent();
-                Trace.TraceInformation("exit-attributeflowconcatenate");
+                Tracer.Unindent();
+                Tracer.TraceInformation("exit-attributeflowconcatenate");
             }
         }
     }
@@ -108,8 +108,8 @@ namespace Granfeldt
 
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
-            Trace.TraceInformation("enter-attributeflowconstant");
-            Trace.Indent();
+            Tracer.TraceInformation("enter-attributeflowconstant");
+            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
@@ -119,17 +119,17 @@ namespace Granfeldt
 
                 if (string.IsNullOrEmpty(this.EscapedCN))
                 {
-                    Trace.TraceInformation("no-CN-to-escape");
+                    Tracer.TraceInformation("no-CN-to-escape");
                     replacedValue = replacedValue.ReplaceWithMVValueOrBlank(mventry);
                 }
                 else
                 {
                     escapedCN = this.EscapedCN.ReplaceWithHelperValuesOrBlank(rule.Helpers);
                     escapedCN = ma.EscapeDNComponent(this.EscapedCN.ReplaceWithMVValueOrBlank(mventry, "")).ToString();
-                    Trace.TraceInformation("escaped-cn '{0}'", escapedCN);
+                    Tracer.TraceInformation("escaped-cn '{0}'", escapedCN);
                     replacedValue = replacedValue.ReplaceWithMVValueOrBlank(mventry, escapedCN);
                 }
-                Trace.TraceInformation("flow-constant-'{0}'-to-'{1}'", replacedValue, this.Target);
+                Tracer.TraceInformation("flow-constant-'{0}'-to-'{1}'", replacedValue, this.Target);
                 if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                     csentry.DN = csentry.MA.CreateDN(replacedValue);
                 else
@@ -137,13 +137,13 @@ namespace Granfeldt
             }
             catch (Exception ex)
             {
-                Trace.TraceError("error {0}", ex.GetBaseException());
+                Tracer.TraceError("error {0}", ex.GetBaseException());
                 throw;
             }
             finally
             {
-                Trace.Unindent();
-                Trace.TraceInformation("exit-attributeflowconstant");
+                Tracer.Unindent();
+                Tracer.TraceInformation("exit-attributeflowconstant");
             }
         }
     }
@@ -157,8 +157,8 @@ namespace Granfeldt
 
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
-            Trace.TraceInformation("enter-attributeflowmultivaluedconstant");
-            Trace.Indent();
+            Tracer.TraceInformation("enter-attributeflowmultivaluedconstant");
+            Tracer.Indent();
 
             if (Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
             {
@@ -182,30 +182,30 @@ namespace Granfeldt
 
                     if (string.IsNullOrEmpty(this.EscapedCN))
                     {
-                        Trace.TraceInformation("no-CN-to-escape");
+                        Tracer.TraceInformation("no-CN-to-escape");
                         replacedValue = replacedValue.ReplaceWithMVValueOrBlank(mventry);
                     }
                     else
                     {
                         escapedCN = this.EscapedCN.ReplaceWithHelperValuesOrBlank(rule.Helpers);
                         escapedCN = ma.EscapeDNComponent(this.EscapedCN.ReplaceWithMVValueOrBlank(mventry, "")).ToString();
-                        Trace.TraceInformation("escaped-cn '{0}'", escapedCN);
+                        Tracer.TraceInformation("escaped-cn '{0}'", escapedCN);
                         replacedValue = replacedValue.ReplaceWithMVValueOrBlank(mventry, escapedCN);
                     }
-                    Trace.TraceInformation("flow-mv-constant-'{0}'-to-'{1}'", replacedValue, this.Target);
+                    Tracer.TraceInformation("flow-mv-constant-'{0}'-to-'{1}'", replacedValue, this.Target);
 
                     csentry[(this.Target)].Values.Add(replacedValue);
                 }
             }
             catch (Exception ex)
             {
-                Trace.TraceError("error {0}", ex.GetBaseException());
+                Tracer.TraceError("error {0}", ex.GetBaseException());
                 throw;
             }
             finally
             {
-                Trace.Unindent();
-                Trace.TraceInformation("exit-attributeflowmutlivaluedconstant");
+                Tracer.Unindent();
+                Tracer.TraceInformation("exit-attributeflowmutlivaluedconstant");
             }
         }
     }
@@ -215,13 +215,13 @@ namespace Granfeldt
     {
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
-            Trace.TraceInformation("enter-attributeflowguid");
-            Trace.Indent();
+            Tracer.TraceInformation("enter-attributeflowguid");
+            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
                 Guid newGuid = Guid.NewGuid();
-                Trace.TraceInformation("new-guid-'{0}'-to-'{1}'", newGuid.ToString(), this.Target);
+                Tracer.TraceInformation("new-guid-'{0}'-to-'{1}'", newGuid.ToString(), this.Target);
 
                 if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                     csentry.DN = csentry.MA.CreateDN(newGuid.ToString());
@@ -230,13 +230,13 @@ namespace Granfeldt
             }
             catch (Exception ex)
             {
-                Trace.TraceError("error {0}", ex.GetBaseException());
+                Tracer.TraceError("error {0}", ex.GetBaseException());
                 throw;
             }
             finally
             {
-                Trace.Unindent();
-                Trace.TraceInformation("exit-attributeflowguid");
+                Tracer.Unindent();
+                Tracer.TraceInformation("exit-attributeflowguid");
             }
         }
     }
@@ -251,15 +251,15 @@ namespace Granfeldt
 
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
-            Trace.TraceInformation("enter-attributeflowattribute");
-            Trace.Indent();
+            Tracer.TraceInformation("enter-attributeflowattribute");
+            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
                 string TargetValue;
                 if (Source.Equals("[MVObjectID]"))
                 {
-                    Trace.TraceInformation("flow-source: mvobjectid, '{0}'", mventry.ObjectID);
+                    Tracer.TraceInformation("flow-source: mvobjectid, '{0}'", mventry.ObjectID);
                     if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                     {
                         csentry.DN = csentry.DN = csentry.MA.CreateDN(mventry.ObjectID.ToString());
@@ -286,9 +286,9 @@ namespace Granfeldt
                     if (this.TrimTargetValue) { TargetValue = TargetValue.Trim(); }
 
                     TargetValue = (string.IsNullOrEmpty(this.Prefix)) ? TargetValue : this.Prefix + TargetValue;
-                    Trace.TraceInformation("flow-source-value: '{0}'", mventry[this.Source].Value);
+                    Tracer.TraceInformation("flow-source-value: '{0}'", mventry[this.Source].Value);
 
-                    Trace.TraceInformation("target-value: '{0}'", TargetValue);
+                    Tracer.TraceInformation("target-value: '{0}'", TargetValue);
                     if (this.Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
                     {
                         csentry.DN = csentry.MA.CreateDN(TargetValue);
@@ -301,13 +301,13 @@ namespace Granfeldt
             }
             catch (Exception ex)
             {
-                Trace.TraceError("error {0}", ex.GetBaseException());
+                Tracer.TraceError("error {0}", ex.GetBaseException());
                 throw;
             }
             finally
             {
-                Trace.Unindent();
-                Trace.TraceInformation("exit-attributeflowattribute");
+                Tracer.Unindent();
+                Tracer.TraceInformation("exit-attributeflowattribute");
             }
         }
     }

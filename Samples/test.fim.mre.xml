@@ -20,6 +20,13 @@
 					<Description></Description>
 					<MVAttribute>accountName</MVAttribute>
 				</ConditionBase>
+
+				<ConditionBase xsi:type="ConditionBetween">
+					<Description>now must be between startdate and enddate</Description>
+					<MVAttributeStartDate>employeeStartDate</MVAttributeStartDate>
+					<MVAttributeEndDate>employeeEndDate</MVAttributeEndDate>
+				</ConditionBase>
+
 			</Conditions>
 			<InitialFlows>
 				<AttributeFlowBase xsi:type="AttributeFlowConstant">

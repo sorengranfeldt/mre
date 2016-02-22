@@ -64,25 +64,25 @@ namespace Granfeldt
 		{
 			if (this.RenameDnFlow != null)
 			{
-				Trace.TraceWarning("'RenameDnFlow' is no longer supported. Use 'ConditionalRename' instead' or remove 'RenameDnFlow' element from rule definition (see documentation).");
+				Tracer.TraceWarning("'RenameDnFlow' is no longer supported. Use 'ConditionalRename' instead' or remove 'RenameDnFlow' element from rule definition (see documentation).");
 			}
 			switch (this.Action)
 			{
 				case RuleAction.provision:
 					this.Action = RuleAction.Provision;
-					Trace.TraceWarning("Lowercase 'provision' action keyword is deprecated. Use 'Provision' instead' (see documentation).");
+					Tracer.TraceWarning("Lowercase 'provision' action keyword is deprecated. Use 'Provision' instead' (see documentation).");
 					break;
 				case RuleAction.deprovision:
 					this.Action = RuleAction.Deprovision;
-					Trace.TraceWarning("Lowercase 'deprovision' action keyword is deprecated. Use 'Deprovision' instead' (see documentation).");
+					Tracer.TraceWarning("Lowercase 'deprovision' action keyword is deprecated. Use 'Deprovision' instead' (see documentation).");
 					break;
 				case RuleAction.rename:
 					this.Action = RuleAction.Rename;
-					Trace.TraceWarning("Lowercase 'rename' action keyword is deprecated. Use 'Rename' instead' (see documentation).");
+					Tracer.TraceWarning("Lowercase 'rename' action keyword is deprecated. Use 'Rename' instead' (see documentation).");
 					break;
 				case RuleAction.deprovisionall:
 					this.Action = RuleAction.DeprovisionAll;
-					Trace.TraceWarning("Lowercase 'deprovisionall' action keyword is deprecated. Use 'DeprovisionAll' instead' (see documentation).");
+					Tracer.TraceWarning("Lowercase 'deprovisionall' action keyword is deprecated. Use 'DeprovisionAll' instead' (see documentation).");
 					break;
 				default:
 					break;

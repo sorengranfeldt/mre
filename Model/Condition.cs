@@ -1,12 +1,11 @@
 ﻿
 namespace Granfeldt
 {
+	using Microsoft.MetadirectoryServices;
 	using System;
 	using System.Collections.Generic;
-	using System.Diagnostics;
 	using System.Text.RegularExpressions;
 	using System.Xml.Serialization;
-	using Microsoft.MetadirectoryServices;
 
 	public enum ConditionOperator
 	{
@@ -30,8 +29,8 @@ namespace Granfeldt
 		}
 		public virtual bool Met(MVEntry mventry, CSEntry csentry)
 		{
-			Trace.TraceInformation("enter-conditionsmet");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-conditionsmet");
+			Tracer.Indent();
 			try
 			{
 				if (Operator.Equals(ConditionOperator.And))
@@ -40,10 +39,10 @@ namespace Granfeldt
 					foreach (ConditionBase condition in ConditionBase)
 					{
 						met = condition.Met(mventry, csentry);
-						Trace.TraceInformation("'And' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
+						Tracer.TraceInformation("'And' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
 						if (met == false) break;
 					}
-					Trace.TraceInformation("All 'And' conditions {0} met", met ? "were" : "were not");
+					Tracer.TraceInformation("All 'And' conditions {0} met", met ? "were" : "were not");
 					return met;
 				}
 				else
@@ -52,22 +51,22 @@ namespace Granfeldt
 					foreach (ConditionBase condition in ConditionBase)
 					{
 						met = condition.Met(mventry, csentry);
-						Trace.TraceInformation("'Or' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
+						Tracer.TraceInformation("'Or' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
 						if (met == true) break;
 					}
-					Trace.TraceInformation("One or more 'Or' conditions {0} met", met ? "were" : "were not");
+					Tracer.TraceInformation("One or more 'Or' conditions {0} met", met ? "were" : "were not");
 					return met;
 				}
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-conditionsmet");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-conditionsmet");
 			}
 		}
 	}
@@ -80,6 +79,7 @@ namespace Granfeldt
 	XmlInclude(typeof(ConditionIsPresent)), XmlInclude(typeof(ConditionIsNotPresent)),
 	XmlInclude(typeof(ConditionAreEqual)), XmlInclude(typeof(ConditionAreNotEqual)),
 	XmlInclude(typeof(ConditionIsTrue)), XmlInclude(typeof(ConditionIsFalse)),
+	XmlInclude(typeof(ConditionAfter)), XmlInclude(typeof(ConditionBefore)), XmlInclude(typeof(ConditionBetween)),
 	XmlInclude(typeof(SubCondition))
 	]
 	public class ConditionBase
@@ -89,6 +89,102 @@ namespace Granfeldt
 		public virtual bool Met(MVEntry mventry, CSEntry csentry)
 		{
 			return true;
+		}
+	}
+	public class ConditionBetween : ConditionBase
+	{
+		public string MVAttributeStartDate;
+		public string MVAttributeEndDate;
+
+		public override bool Met(MVEntry mventry, CSEntry csentry)
+		{
+			if (!mventry[this.MVAttributeStartDate].IsPresent)
+			{
+				Tracer.TraceInformation("Condition failed (Reason: MVAttributeStartDate {0} attribute value is not present) / {0}", this.MVAttributeStartDate, this.Description);
+				return false;
+			}
+			if (!mventry[this.MVAttributeEndDate].IsPresent)
+			{
+				Tracer.TraceInformation("Condition failed (Reason: MVAttributeEndDate {0} attribute value is not present) / {0}", this.MVAttributeEndDate, this.Description);
+				return false;
+			}
+
+			DateTime startDate;
+			DateTime endDate;
+			if (!DateTime.TryParse(mventry[this.MVAttributeStartDate].StringValue, out startDate))
+			{
+				Tracer.TraceWarning("unable-to-parse-start-mvvalue-to-datetime {0}", mventry[this.MVAttributeStartDate].StringValue);
+				return false;
+			}
+			if (!DateTime.TryParse(mventry[this.MVAttributeEndDate].StringValue, out endDate))
+			{
+				Tracer.TraceWarning("unable-to-parse-end-mvvalue-to-datetime {0}", mventry[this.MVAttributeEndDate].StringValue);
+				return false;
+			}
+
+			DateTime now = DateTime.Now;
+			bool returnValue = (startDate < now) && (now < endDate);
+			Tracer.TraceInformation("compare-dates now: {0}, start: {1}, end: {2}, is-between: {3}", now, startDate, endDate, returnValue);
+			return returnValue;
+		}
+	}
+
+	public class ConditionAfter : ConditionBase
+	{
+		public string MVAttribute;
+
+		public override bool Met(MVEntry mventry, CSEntry csentry)
+		{
+			if (mventry[this.MVAttribute].IsPresent)
+			{
+				DateTime value;
+				if (DateTime.TryParse(mventry[this.MVAttribute].StringValue, out value))
+				{
+					DateTime now = DateTime.Now;
+					bool returnValue = now > value;
+					Tracer.TraceInformation("compare-dates now: {0}, mvvalue: {1}, is-after: {2}", now, value, returnValue);
+					return returnValue;
+				}
+				else
+				{
+					Tracer.TraceWarning("unable-to-parse-mvvalue-to-datetime {0}", mventry[this.MVAttribute].StringValue);
+					return false;
+				}
+			}
+			else
+			{
+				Tracer.TraceInformation("Condition failed (Reason: Metaverse attribute value is not present) {0}", this.Description);
+				return false;
+			}
+		}
+	}
+	public class ConditionBefore : ConditionBase
+	{
+		public string MVAttribute;
+
+		public override bool Met(MVEntry mventry, CSEntry csentry)
+		{
+			if (mventry[this.MVAttribute].IsPresent)
+			{
+				DateTime value;
+				if (DateTime.TryParse(mventry[this.MVAttribute].StringValue, out value))
+				{
+					DateTime now = DateTime.Now;
+					bool returnValue = now < value;
+					Tracer.TraceInformation("compare-dates now: {0}, mvvalue: {1}, is-before: {2}", now, value, returnValue);
+					return returnValue;
+				}
+				else
+				{
+					Tracer.TraceWarning("unable-to-parse-mvvalue-to-datetime {0}", mventry[this.MVAttribute].StringValue);
+					return false;
+				}
+			}
+			else
+			{
+				Tracer.TraceInformation("Condition failed (Reason: Metaverse attribute value is not present) {0}", this.Description);
+				return false;
+			}
 		}
 	}
 
@@ -104,7 +200,7 @@ namespace Granfeldt
 			}
 			else
 			{
-				Trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Metaverse attribute value is not present) {0}", this.Description);
 				return false;
 			}
 		}
@@ -121,7 +217,7 @@ namespace Granfeldt
 			}
 			else
 			{
-				Trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
 				return false;
 			}
 		}
@@ -136,14 +232,14 @@ namespace Granfeldt
 		{
 			if (!mventry[this.MVAttribute].IsPresent)
 			{
-				Trace.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
 				return false;
 			}
 			else
 			{
 				if (!Regex.IsMatch(mventry[this.MVAttribute].Value, this.Pattern, RegexOptions.IgnoreCase))
 				{
-					Trace.TraceInformation("Condition failed (Reason: RegEx doesnt match) {0}", this.Description);
+					Tracer.TraceInformation("Condition failed (Reason: RegEx doesnt match) {0}", this.Description);
 					return false;
 				}
 				return true;
@@ -161,7 +257,7 @@ namespace Granfeldt
 			{
 				if (Regex.IsMatch(mventry[this.MVAttribute].Value, this.Pattern, RegexOptions.IgnoreCase))
 				{
-					Trace.TraceInformation("Condition failed (Reason: RegEx match) {0}", this.Description);
+					Tracer.TraceInformation("Condition failed (Reason: RegEx match) {0}", this.Description);
 					return false;
 				}
 			}
@@ -177,13 +273,13 @@ namespace Granfeldt
 		{
 			if (!mventry[this.MVAttribute].IsPresent)
 			{
-				Trace.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
 				return false;
 			}
 
 			if (!mventry[this.MVAttribute].BooleanValue)
 			{
-				Trace.TraceInformation("Condition failed (Reason: Boolean value is false) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Boolean value is false) {0}", this.Description);
 				return false;
 			}
 			return true;
@@ -197,13 +293,13 @@ namespace Granfeldt
 		{
 			if (!mventry[this.MVAttribute].IsPresent)
 			{
-				Trace.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
 				return false;
 			}
 
 			if (mventry[this.MVAttribute].BooleanValue)
 			{
-				Trace.TraceInformation("Condition failed (Reason: Boolean value is true) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Boolean value is true) {0}", this.Description);
 				return false;
 			}
 			return true;
@@ -222,7 +318,7 @@ namespace Granfeldt
 
 			if (csValue.Equals(MVAttribute))
 			{
-				Trace.TraceInformation("Condition failed (Reason: Values are not equal) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Values are not equal) {0}", this.Description);
 				return false;
 			}
 			return true;
@@ -240,7 +336,7 @@ namespace Granfeldt
 
 			if (csValue != MVAttribute)
 			{
-				Trace.TraceInformation("Condition failed (Reason: Values are equal) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Values are equal) {0}", this.Description);
 				return false;
 			}
 			return true;
@@ -256,7 +352,7 @@ namespace Granfeldt
 			ConnectedMA MA = mventry.ConnectedMAs[this.ManagementAgentName];
 			if (MA.Connectors.Count.Equals(0))
 			{
-				Trace.TraceInformation("Condition failed (Reason: Not connected to {0}) {1}", this.ManagementAgentName, this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Not connected to {0}) {1}", this.ManagementAgentName, this.Description);
 				return false;
 			}
 			return true;
@@ -271,7 +367,7 @@ namespace Granfeldt
 			ConnectedMA MA = mventry.ConnectedMAs[this.ManagementAgentName];
 			if (MA.Connectors.Count > 0)
 			{
-				Trace.TraceInformation("Condition failed (Reason: Still connected to {0}) {1}", this.ManagementAgentName, this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Still connected to {0}) {1}", this.ManagementAgentName, this.Description);
 				return false;
 			}
 			return true;
@@ -294,8 +390,8 @@ namespace Granfeldt
 
 		public override bool Met(MVEntry mventry, CSEntry csentry)
 		{
-			Trace.TraceInformation("enter-subconditionsmet");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-subconditionsmet");
+			Tracer.Indent();
 			try
 			{
 				if (Operator.Equals(ConditionOperator.And))
@@ -304,10 +400,10 @@ namespace Granfeldt
 					foreach (ConditionBase condition in ConditionBase)
 					{
 						met = condition.Met(mventry, csentry);
-						Trace.TraceInformation("'And' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
+						Tracer.TraceInformation("'And' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
 						if (met == false) break;
 					}
-					Trace.TraceInformation("All 'And' conditions {0} met", met ? "were" : "were not");
+					Tracer.TraceInformation("All 'And' conditions {0} met", met ? "were" : "were not");
 					return met;
 				}
 				else
@@ -316,22 +412,22 @@ namespace Granfeldt
 					foreach (ConditionBase condition in ConditionBase)
 					{
 						met = condition.Met(mventry, csentry);
-						Trace.TraceInformation("'Or' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
+						Tracer.TraceInformation("'Or' condition '{0}'/{1} returned: {2}", condition.GetType().Name, condition.Description, met);
 						if (met == true) break;
 					}
-					Trace.TraceInformation("One or more 'Or' conditions {0} met", met ? "were" : "were not");
+					Tracer.TraceInformation("One or more 'Or' conditions {0} met", met ? "were" : "were not");
 					return met;
 				}
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-subconditionsmet");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-subconditionsmet");
 			}
 		}
 	}
@@ -345,14 +441,14 @@ namespace Granfeldt
 
 		public override bool Met(MVEntry mventry, CSEntry csentry)
 		{
-			Trace.TraceWarning("Condition type 'ConditionAttributeIsPresent' is obsolete. Please see documentation.");
+			Tracer.TraceWarning("Condition type 'ConditionAttributeIsPresent' is obsolete. Please see documentation.");
 			if (mventry[this.MVAttribute].IsPresent)
 			{
 				return true;
 			}
 			else
 			{
-				Trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
 				return false;
 			}
 		}
@@ -364,14 +460,14 @@ namespace Granfeldt
 
 		public override bool Met(MVEntry mventry, CSEntry csentry)
 		{
-			Trace.TraceWarning("Condition type 'ConditionAttributeIsNotPresent' is obsolete. Please see documentation.");
+			Tracer.TraceWarning("Condition type 'ConditionAttributeIsNotPresent' is obsolete. Please see documentation.");
 			if (!mventry[this.MVAttribute].IsPresent)
 			{
 				return true;
 			}
 			else
 			{
-				Trace.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
+				Tracer.TraceInformation("Condition failed (Reason: Metaverse attribute value is present) {0}", this.Description);
 				return false;
 			}
 		}

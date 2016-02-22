@@ -73,12 +73,16 @@ namespace Granfeldt
 
 		public void Initialize()
 		{
-			Trace.IndentLevel = 0;
-			Trace.TraceInformation("enter-initialize");
-			Trace.Indent();
+			Tracer.IndentLevel = 0;
+			Tracer.TraceInformation("enter-initialize");
+			Tracer.Indent();
 
 			try
 			{
+				System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
+				FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
+				Tracer.TraceInformation("fim-mre-version {0}", fvi.FileVersion);
+
 				RegistryKey machineRegistry = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
 				RegistryKey mreRootKey = machineRegistry.OpenSubKey(@"SOFTWARE\Granfeldt\FIM\MRE", false);
 
@@ -87,20 +91,20 @@ namespace Granfeldt
 					string logFileValue = mreRootKey.GetValue("DebugLogFileName", null) as string;
 					if (logFileValue != null)
 					{
-						Trace.TraceWarning("DebugLogFileName registry key is deprecated. Use trace logging instead.");
+						Tracer.TraceWarning("DebugLogFileName registry key is deprecated. Use trace logging instead.");
 					}
 
 					string ruleFilesAlternativePath = mreRootKey.GetValue("RuleFilesAlternativePath", null) as string;
 					if (!string.IsNullOrEmpty(ruleFilesAlternativePath))
 					{
 						ruleFilesPath = ruleFilesAlternativePath;
-						Trace.TraceInformation("registry-alternative-rulefiles-path '{0}'", ruleFilesPath);
+						Tracer.TraceInformation("registry-alternative-rulefiles-path '{0}'", ruleFilesPath);
 					}
 				}
 
 				if (!EventLog.SourceExists(EventLogSource))
 				{
-					Trace.TraceInformation("creating-eventlog-source '{0}'", EventLogSource);
+					Tracer.TraceInformation("creating-eventlog-source source: {0}, logname: ", EventLogSource, EventLogName);
 					EventLog.CreateEventSource(EventLogSource, EventLogName);
 				}
 				EventLog evl = new EventLog(EventLogName);
@@ -112,71 +116,71 @@ namespace Granfeldt
 				EventTypeFilter filter = new EventTypeFilter(SourceLevels.Warning | SourceLevels.Error | SourceLevels.Critical);
 				eventLog.TraceOutputOptions = TraceOptions.Callstack;
 				eventLog.Filter = filter;
-				Trace.Listeners.Add(eventLog);
+				Tracer.Trace.Listeners.Add(eventLog);
 
 #if DEBUG
 				// for debugging, we use current path
 				if (ruleFilesPath == Utils.ExtensionsDirectory)
 					ruleFilesPath = Directory.GetCurrentDirectory();
 #endif
-				Trace.TraceInformation("loading-rule-files-from '{0}'", ruleFilesPath);
+				Tracer.TraceInformation("loading-rule-files-from '{0}'", ruleFilesPath);
 				this.EngineRules = new RulesFile();
 				string[] ruleFiles = Directory.GetFiles(ruleFilesPath, "*fim.mre.xml", SearchOption.AllDirectories);
 				foreach (string ruleFile in ruleFiles)
 				{
 					RulesFile rules = new RulesFile();
-					Trace.TraceInformation("loading-rule-file '{0}'", ruleFile);
+					Tracer.TraceInformation("loading-rule-file '{0}'", ruleFile);
 					new MVRules().LoadSettingsFromFile(ruleFile, ref rules);
 					foreach (Rule rule in rules.Rules)
 					{
 						EngineRules.Rules.Add(rule);
 					}
 				}
-				Trace.TraceInformation("evaluating-{0}-rule(s)", EngineRules.Rules.Count);
+				Tracer.TraceInformation("evaluating-{0}-rule(s)", EngineRules.Rules.Count);
 				foreach (Rule rule in EngineRules.Rules)
 				{
 					rule.EnsureBackwardsCompatibility();
 
 					if (rule.Enabled && rule.RenameDnFlow != null)
 					{
-						Trace.TraceWarning("RenameDnFlow XML element is obsolete and will not be supported in coming versions. Please see documentation for more information.");
+						Tracer.TraceWarning("RenameDnFlow XML element is obsolete and will not be supported in coming versions. Please see documentation for more information.");
 					}
 					if (rule.Enabled)
 					{
-						Trace.TraceInformation("found-active-rule {0}", rule.Name);
+						Tracer.TraceInformation("found-active-rule {0}", rule.Name);
 					}
 					else
 					{
-						Trace.TraceInformation("found-inactive-rule {0}", rule.Name);
+						Tracer.TraceInformation("found-inactive-rule {0}", rule.Name);
 					}
 				}
-				Trace.TraceInformation("removing-inactive-{0}-rules", EngineRules.Rules.Count(ru => !ru.Enabled));
+				Tracer.TraceInformation("removing-inactive-{0}-rules", EngineRules.Rules.Count(ru => !ru.Enabled));
 				EngineRules.Rules.RemoveAll(rule => !rule.Enabled);
 				if (EngineRules.Rules.Count.Equals(0))
-					Trace.TraceWarning("no-rules-loaded");
+					Tracer.TraceWarning("no-rules-loaded");
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-initialize");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-initialize");
 			}
 		}
 		public void Provision(MVEntry mventry)
 		{
-			Trace.IndentLevel = 0;
-			Trace.TraceInformation("enter-provision");
-			Trace.Indent();
+			Tracer.IndentLevel = 0;
+			Tracer.TraceInformation("enter-provision");
+			Tracer.Indent();
 			try
 			{
 				foreach (Rule rule in EngineRules.Rules.Where(mv => mv.SourceObject.Equals(mventry.ObjectType, StringComparison.OrdinalIgnoreCase)))
 				{
-					Trace.TraceInformation("start-rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName);
-					Trace.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
+					Tracer.TraceInformation("start-rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName);
+					Tracer.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
 					CSEntry csentry = null;
 					ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
 					switch (rule.Action)
@@ -201,34 +205,34 @@ namespace Granfeldt
 								if (ma.Connectors.Count == 1)
 								{
 									csentry = ma.Connectors.ByIndex[0];
-									Trace.TraceInformation("already-connected {0}", csentry.DN);
+									Tracer.TraceInformation("already-connected {0}", csentry.DN);
 									if (rule.Reprovision != null && rule.Reprovision.ProvisionRuleId != null)
 									{
 										Rule reprovRule = EngineRules.Rules.Where(r => r.RuleId.Equals(rule.Reprovision.ProvisionRuleId)).FirstOrDefault();
 										if (reprovRule != null)
 										{
-											Trace.TraceInformation("check-reprovisioning-conditions");
+											Tracer.TraceInformation("check-reprovisioning-conditions");
 											if (rule.Reprovision.Conditions != null && rule.Reprovision.Conditions.Met(mventry, csentry))
 											{
-												Trace.TraceInformation("reprovisioning '{0}' using rule id '{1}'", csentry.DN, rule.Reprovision.ProvisionRuleId);
+												Tracer.TraceInformation("reprovisioning '{0}' using rule id '{1}'", csentry.DN, rule.Reprovision.ProvisionRuleId);
 												DeprovisionConnector(ma, csentry, mventry, rule);
 												CreateConnector(ma, csentry, mventry, reprovRule);
 											}
 											else
 											{
-												Trace.TraceInformation("reprovisioning-conditions-not-met");
+												Tracer.TraceInformation("reprovisioning-conditions-not-met");
 											}
 										}
 										else
 										{
-											Trace.TraceError("reprovisioning-rule-not-found: id '{0}'", rule.Reprovision.ProvisionRuleId);
+											Tracer.TraceError("reprovisioning-rule-not-found: id '{0}'", rule.Reprovision.ProvisionRuleId);
 										}
 									}
 									this.ConditionalRenameConnector(ma, csentry, mventry, rule);
 								}
 								else
 								{
-									Trace.TraceError("more-than-one-connector-(" + ma.Connectors.Count + ")-exists");
+									Tracer.TraceError("more-than-one-connector-(" + ma.Connectors.Count + ")-exists");
 								}
 							}
 							break;
@@ -246,21 +250,21 @@ namespace Granfeldt
 							}
 							break;
 						default:
-							Trace.TraceError("invalid-action-specified {0}", rule.Action);
+							Tracer.TraceError("invalid-action-specified {0}", rule.Action);
 							break;
 					}
-					Trace.TraceInformation("end-rule {0}", rule.Name);
+					Tracer.TraceInformation("end-rule {0}", rule.Name);
 				}
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-provision");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-provision");
 			}
 		}
 		public bool ShouldDeleteFromMV(CSEntry csentry, MVEntry mventry)
@@ -269,26 +273,25 @@ namespace Granfeldt
 		}
 		public void Terminate()
 		{
-			Trace.TraceInformation("enter-terminate");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-terminate");
+			Tracer.Indent();
 			EngineRules = null;
-			Trace.TraceInformation("pre-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
+			Tracer.TraceInformation("pre-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
 			GC.Collect();
-			Trace.TraceInformation("post-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
-			Trace.Unindent();
-			Trace.TraceInformation("exit-terminate");
-			Trace.Flush();
+			Tracer.TraceInformation("post-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
+			Tracer.Unindent();
+			Tracer.TraceInformation("exit-terminate");
 		}
 
 		#endregion
 
 		private void CreateConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
 		{
-			Trace.TraceInformation("enter-createconnector");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-createconnector");
+			Tracer.Indent();
 			try
 			{
-				Trace.TraceInformation("create-connector: MV: '{0}', MA: '{1}'", mventry.ObjectID, ma.Name);
+				Tracer.TraceInformation("create-connector: MV: '{0}', MA: '{1}'", mventry.ObjectID, ma.Name);
 				IList<string> additionalObjectClasses = this.GetAdditionalObjectClasses(mventry, rule);
 				if (additionalObjectClasses.Count > 0)
 				{
@@ -303,39 +306,39 @@ namespace Granfeldt
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-createconnector");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-createconnector");
 			}
 		}
 		private void DeprovisionConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
 		{
-			Trace.TraceInformation("enter-deprovisionconnector");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-deprovisionconnector");
+			Tracer.Indent();
 			try
 			{
-				Trace.TraceInformation("deprovision-connector: DN: '{0}', MA: '{1}'", csentry.DN, csentry.MA.Name);
+				Tracer.TraceInformation("deprovision-connector: DN: '{0}', MA: '{1}'", csentry.DN, csentry.MA.Name);
 				csentry.Deprovision();
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-deprovisionconnector");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-deprovisionconnector");
 			}
 		}
 		private void ConditionalRenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
 		{
-			Trace.TraceInformation("enter-conditionalrenameconnector");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-conditionalrenameconnector");
+			Tracer.Indent();
 			try
 			{
 				if (connectorRule.ConditionalRename == null)
@@ -345,68 +348,68 @@ namespace Granfeldt
 				string replacedValue = null;
 				if (string.IsNullOrEmpty(connectorRule.ConditionalRename.EscapedCN))
 				{
-					Trace.TraceInformation("no-cn-to-escape");
+					Tracer.TraceInformation("no-cn-to-escape");
 					replacedValue = connectorRule.ConditionalRename.NewDNValue.ReplaceWithMVValueOrBlank(mventry);
 				}
 				else
 				{
 					escapedCN = ma.EscapeDNComponent(connectorRule.ConditionalRename.EscapedCN.ReplaceWithMVValueOrBlank(mventry, "")).ToString();
-					Trace.TraceInformation("escaped-cn {0}", escapedCN);
+					Tracer.TraceInformation("escaped-cn {0}", escapedCN);
 					replacedValue = connectorRule.ConditionalRename.NewDNValue.ReplaceWithMVValueOrBlank(mventry, escapedCN);
 				}
 				ReferenceValue newdn = ma.CreateDN(replacedValue);
-				Trace.TraceInformation("old-dn '{0}'", csentry.DN.ToString());
-				Trace.TraceInformation("new-dn '{0}'", newdn.ToString());
+				Tracer.TraceInformation("old-dn '{0}'", csentry.DN.ToString());
+				Tracer.TraceInformation("new-dn '{0}'", newdn.ToString());
 
 				if (this.AreDNsEqual(csentry.DN, newdn, ma, connectorRule.ConditionalRename.StrictDNCompare))
 				{
-					Trace.TraceInformation("no-renaming-necessary");
+					Tracer.TraceInformation("no-renaming-necessary");
 				}
 				else
 				{
-					Trace.TraceInformation("dn-rename-required");
+					Tracer.TraceInformation("dn-rename-required");
 					csentry.DN = ma.CreateDN(replacedValue);
 				}
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-conditionalrenameconnector");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-conditionalrenameconnector");
 			}
 		}
 		private bool ConditionsApply(CSEntry csentry, MVEntry mventry, Conditions conditions)
 		{
-			Trace.TraceInformation("enter-conditionsapply");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-conditionsapply");
+			Tracer.Indent();
 			try
 			{
 				if (conditions == null || conditions.ConditionBase.Count == 0)
 				{
-					Trace.TraceInformation("no-conditions-specified-returning-true");
+					Tracer.TraceInformation("no-conditions-specified-returning-true");
 					return true;
 				}
 				return conditions.Met(mventry, csentry);
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-conditionsapply");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-conditionsapply");
 			}
 		}
 		private IList<string> GetAdditionalObjectClasses(MVEntry mventry, Rule connectorRule)
 		{
-			Trace.TraceInformation("enter-getadditionalobjectclasses");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-getadditionalobjectclasses");
+			Tracer.Indent();
 			List<string> valuesToAdd = new List<string>();
 			try
 			{
@@ -434,25 +437,25 @@ namespace Granfeldt
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-getadditionalobjectclasses");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-getadditionalobjectclasses");
 			}
 			return valuesToAdd;
 		}
 		private void SetupInitialValues(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
 		{
-			Trace.TraceInformation("enter-setupinitialvalues");
-			Trace.Indent();
+			Tracer.TraceInformation("enter-setupinitialvalues");
+			Tracer.Indent();
 			try
 			{
 				if (connectorRule.Helpers != null)
 				{
-					Trace.TraceInformation("generating-helper-values");
+					Tracer.TraceInformation("generating-helper-values");
 					foreach (HelperValue helper in connectorRule.Helpers)
 					{
 						helper.Generate();
@@ -465,25 +468,25 @@ namespace Granfeldt
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-setupinitialvalues");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-setupinitialvalues");
 			}
 		}
 		private bool AreDNsEqual(ReferenceValue dn1, ReferenceValue dn2, ManagementAgent ma, bool strictCompare)
 		{
 			if (strictCompare)
 			{
-				Trace.TraceInformation("performing strict DN comparison");
+				Tracer.TraceInformation("performing strict DN comparison");
 				return dn1.ToString() == dn2.ToString();
 			}
 			else
 			{
-				Trace.TraceInformation("performing RFC-compliant DN comparison");
+				Tracer.TraceInformation("performing RFC-compliant DN comparison");
 				return dn1.Equals(dn2);
 			}
 		}

@@ -19,7 +19,7 @@ namespace Granfeldt
 
 		public void LoadSettingsFromFile(string Filename, ref RulesFile Rules)
 		{
-			Trace.TraceInformation("enter-loadsettingsfromfile");
+			Tracer.TraceInformation("enter-loadsettingsfromfile");
 			try
 			{
 				XmlSerializer serializer = new XmlSerializer(typeof(RulesFile));
@@ -29,18 +29,18 @@ namespace Granfeldt
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-loadsettingsfromfile");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-loadsettingsfromfile");
 			}
 		}
 		public void SaveRulesConfigurationFile(ref RulesFile F, string Filename)
 		{
-			Trace.TraceInformation("enter-saverulesconfigurationfile");
+			Tracer.TraceInformation("enter-saverulesconfigurationfile");
 			try
 			{
 				XmlSerializer serializer = new XmlSerializer(typeof(RulesFile));
@@ -50,13 +50,13 @@ namespace Granfeldt
 			}
 			catch (Exception ex)
 			{
-				Trace.TraceError("error {0}", ex.GetBaseException());
+				Tracer.TraceError("error {0}", ex.GetBaseException());
 				throw;
 			}
 			finally
 			{
-				Trace.Unindent();
-				Trace.TraceInformation("exit-saverulesconfigurationfile");
+				Tracer.Unindent();
+				Tracer.TraceInformation("exit-saverulesconfigurationfile");
 			}
 		}
 

@@ -20,7 +20,7 @@ namespace Granfeldt
         public virtual string GetValue { get; set; }
 		public virtual void Generate()
 		{
-			Trace.TraceInformation("helper-value name: {0}, value: {1}", Name, GetValue);
+			Tracer.TraceInformation("helper-value name: {0}, value: {1}", Name, GetValue);
 		}
 	}
 	public class HelperValueScopedGuid : HelperValue
