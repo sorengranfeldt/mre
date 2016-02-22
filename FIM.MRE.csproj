@@ -68,7 +68,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.MetadirectoryServicesEx">
-      <HintPath>.\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+      <HintPath>.\ReferencedAssemblies\4.0.1\Microsoft.MetadirectoryServicesEx.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.VisualBasic">
