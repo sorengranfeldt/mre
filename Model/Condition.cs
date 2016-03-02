@@ -1,4 +1,6 @@
-﻿
+﻿// march 2, 2016 | soren granfeldt
+// -added ConditionIsNotTrue
+
 namespace Granfeldt
 {
 	using Microsoft.MetadirectoryServices;
@@ -79,6 +81,7 @@ namespace Granfeldt
 	XmlInclude(typeof(ConditionIsPresent)), XmlInclude(typeof(ConditionIsNotPresent)),
 	XmlInclude(typeof(ConditionAreEqual)), XmlInclude(typeof(ConditionAreNotEqual)),
 	XmlInclude(typeof(ConditionIsTrue)), XmlInclude(typeof(ConditionIsFalse)),
+	XmlInclude(typeof(ConditionIsNotTrue)),
 	XmlInclude(typeof(ConditionAfter)), XmlInclude(typeof(ConditionBefore)), XmlInclude(typeof(ConditionBetween)),
 	XmlInclude(typeof(SubCondition))
 	]
@@ -301,6 +304,27 @@ namespace Granfeldt
 			{
 				Tracer.TraceInformation("Condition failed (Reason: Boolean value is true) {0}", this.Description);
 				return false;
+			}
+			return true;
+		}
+	}
+
+	/// <summary>
+	/// Returns true if the metaverse attribute is not present or if present and not true
+	/// </summary>
+	public class ConditionIsNotTrue : ConditionBase
+	{
+		public string MVAttribute;
+
+		public override bool Met(MVEntry mventry, CSEntry csentry)
+		{
+			if (mventry[this.MVAttribute].IsPresent)
+			{
+				if (mventry[this.MVAttribute].BooleanValue)
+				{
+					Tracer.TraceInformation("Condition failed (Reason: Boolean value is true) {0}", this.Description);
+					return false;
+				}
 			}
 			return true;
 		}

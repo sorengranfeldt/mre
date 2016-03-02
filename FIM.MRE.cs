@@ -481,12 +481,12 @@ namespace Granfeldt
 		{
 			if (strictCompare)
 			{
-				Tracer.TraceInformation("performing strict DN comparison");
+				Tracer.TraceInformation("performing-strict-DN-comparison");
 				return dn1.ToString() == dn2.ToString();
 			}
 			else
 			{
-				Tracer.TraceInformation("performing RFC-compliant DN comparison");
+				Tracer.TraceInformation("performing-RFC-compliant-DN-comparison");
 				return dn1.Equals(dn2);
 			}
 		}
