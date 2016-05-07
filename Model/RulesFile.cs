@@ -13,11 +13,11 @@ namespace Granfeldt
 	using System.IO;
 	using System.Xml.Serialization;
 
-	public class MVRules
+	public static class MVRules
 	{
 		#region Methods
 
-		public void LoadSettingsFromFile(string Filename, ref RulesFile Rules)
+		public static void LoadSettingsFromFile(string Filename, ref RulesFile Rules)
 		{
 			Tracer.TraceInformation("enter-loadsettingsfromfile");
 			try
@@ -38,7 +38,7 @@ namespace Granfeldt
 				Tracer.TraceInformation("exit-loadsettingsfromfile");
 			}
 		}
-		public void SaveRulesConfigurationFile(ref RulesFile F, string Filename)
+		public static void SaveRulesConfigurationFile(ref RulesFile F, string Filename)
 		{
 			Tracer.TraceInformation("enter-saverulesconfigurationfile");
 			try
