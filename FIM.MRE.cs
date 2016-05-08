@@ -190,102 +190,133 @@ namespace Granfeldt
             {
                 foreach (Rule rule in this.EngineRules[mventry.ObjectType])
                 {
-                    bool done = false;
-
                     Tracer.TraceInformation("start-rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName);
                     Tracer.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
-                    CSEntry csentry = null;
                     ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
-                    switch (rule.Action)
+
+                    if (ma.Connectors.Count == 0)
                     {
-                        case RuleAction.Rename:
-                            if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.ConditionalRename.Conditions))
-                            {
-                                csentry = ma.Connectors.ByIndex[0];
-                                this.ConditionalRenameConnector(ma, csentry, mventry, rule);
-                            }
-                            break;
+                        // If we don't have any connectors, the only rule that can 
+                        // apply is a provisioning rule
 
-                        case RuleAction.Provision:
-                            if (ma.Connectors.Count == 0)
+                        if (rule.Action == RuleAction.Provision)
+                        {
+                            if (this.ConditionsApply(null, mventry, rule.Conditions))
                             {
-                                if (ConditionsApply(csentry, mventry, rule.Conditions))
+                                this.CreateConnector(ma, mventry, rule);
+                                // Don't need to process any more rules
+                                // as we have just newly provisioned
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            // The rule isnt a provisioning rule, and there are no connectors
+                            // so there is nothing to do - skip to the next rule
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        // There is at least one connector, so lets see if we should
+                        // re-provision, deprovision, rename, or deprovision all
+
+                        if (rule.Action == RuleAction.Rename)
+                        {
+                            bool hasRenamed = false;
+
+                            foreach (CSEntry renameCandidate in ma.Connectors)
+                            {
+                                if (this.ConditionsApply(renameCandidate, mventry, rule.ConditionalRename.Conditions))
                                 {
-                                    this.CreateConnector(ma, csentry, mventry, rule);
-                                    done = true;
+                                    this.ConditionalRenameConnector(ma, renameCandidate, mventry, rule);
+                                    hasRenamed = true;
+                                }
+                            }
+
+                            if (hasRenamed)
+                            {
+                                break;
+                            }
+                        }
+                        else if (rule.Action == RuleAction.Provision)
+                        {
+                            // We already have a connector, so check if we need to re-provision
+
+                            if ((rule.Reprovision != null) && (rule.Reprovision.ProvisionRuleId != null))
+                            {
+                                Rule reprovRule = this.EngineRules[rule.SourceObject].FirstOrDefault(r => r.RuleId.Equals(rule.Reprovision.ProvisionRuleId));
+                                if (reprovRule == null)
+                                {
+                                    Tracer.TraceError("reprovisioning-rule-not-found: id '{0}'", rule.Reprovision.ProvisionRuleId);
+                                    continue;
+                                }
+
+                                Tracer.TraceInformation("check-reprovisioning-conditions");
+                                if (rule.Reprovision.Conditions == null)
+                                {
+                                    continue;
+                                }
+
+                                bool hasReproved = false;
+
+                                foreach (CSEntry reprovCandidate in ma.Connectors)
+                                {
+                                    if (rule.Reprovision.Conditions.Met(mventry, reprovCandidate))
+                                    {
+                                        Tracer.TraceInformation("reprovisioning '{0}' using rule id '{1}'",
+                                            reprovCandidate.DN, rule.Reprovision.ProvisionRuleId);
+                                        this.DeprovisionConnector(ma, reprovCandidate, mventry, rule);
+                                        this.CreateConnector(ma, mventry, reprovRule);
+                                        hasReproved = true;
+                                    }
+                                }
+
+                                if (hasReproved)
+                                {
                                     break;
                                 }
-                                else
-                                {
-                                    break;
-                                }
                             }
-                            else if (ma.Connectors.Count == 1)
+                        }
+                        else if (rule.Action == RuleAction.Deprovision)
+                        {
+                            bool hasDeleted = false;
+                            foreach (CSEntry deprovCandidate in ma.Connectors)
                             {
-                                csentry = ma.Connectors.ByIndex[0];
-                                Tracer.TraceInformation("already-connected {0}", csentry.DN);
-                                if (rule.Reprovision != null && rule.Reprovision.ProvisionRuleId != null)
+                                if (!this.ConditionsApply(deprovCandidate, mventry, rule.Conditions))
                                 {
-                                    Rule reprovRule = EngineRules[rule.SourceObject].Where(r => r.RuleId.Equals(rule.Reprovision.ProvisionRuleId)).FirstOrDefault();
-                                    if (reprovRule != null)
-                                    {
-                                        Tracer.TraceInformation("check-reprovisioning-conditions");
-                                        if (rule.Reprovision.Conditions != null && rule.Reprovision.Conditions.Met(mventry, csentry))
-                                        {
-                                            Tracer.TraceInformation("reprovisioning '{0}' using rule id '{1}'", csentry.DN, rule.Reprovision.ProvisionRuleId);
-                                            DeprovisionConnector(ma, csentry, mventry, rule);
-                                            CreateConnector(ma, csentry, mventry, reprovRule);
-                                            done = true;
-                                            break;
-                                        }
-                                        else
-                                        {
-                                            Tracer.TraceInformation("reprovisioning-conditions-not-met");
-                                        }
-                                    }
-                                    else
-                                    {
-                                        Tracer.TraceError("reprovisioning-rule-not-found: id '{0}'", rule.Reprovision.ProvisionRuleId);
-                                    }
+                                    continue;
                                 }
 
-                                // SG -> Dont think this should be here? Was triggering a rename on every provision action
-                                //this.ConditionalRenameConnector(ma, csentry, mventry, rule);
-                            }
-                            else
-                            {
-                                Tracer.TraceError("more-than-one-connector-(" + ma.Connectors.Count + ")-exists");
+                                this.DeprovisionConnector(ma, deprovCandidate, mventry, rule);
+                                hasDeleted = true;
                             }
 
-                            break;
-
-                        case RuleAction.Deprovision:
-                            if (ma.Connectors.Count == 1 && ConditionsApply(csentry, mventry, rule.Conditions))
+                            if (hasDeleted)
                             {
-                                csentry = ma.Connectors.ByIndex[0];
-                                this.DeprovisionConnector(ma, csentry, mventry, rule);
-                                done = true;
+                                break;
                             }
-                            break;
-
-                        case RuleAction.DeprovisionAll:
-                            if (ConditionsApply(csentry, mventry, rule.Conditions))
+                        }
+                        else if (rule.Action == RuleAction.DeprovisionAll)
+                        {
+                            foreach (CSEntry deprovCandidate in ma.Connectors)
                             {
+                                if (!this.ConditionsApply(deprovCandidate, mventry, rule.Conditions))
+                                {
+                                    continue;
+                                }
+
                                 mventry.ConnectedMAs.DeprovisionAll();
-                                done = true;
+                                break;
                             }
-                            break;
-
-                        default:
+                        }
+                        else
+                        {
                             Tracer.TraceError("invalid-action-specified {0}", rule.Action);
-                            break;
+                        }
                     }
-                    Tracer.TraceInformation("end-rule {0}", rule.Name);
 
-                    if (done)
-                    {
-                        break;
-                    }
+                    Tracer.TraceInformation("end-rule {0}", rule.Name);
                 }
             }
             catch (Exception ex)
@@ -307,7 +338,7 @@ namespace Granfeldt
         {
             Tracer.TraceInformation("enter-terminate");
             Tracer.Indent();
-            EngineRules = null;
+            this.EngineRules = null;
             Tracer.TraceInformation("pre-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
             GC.Collect();
             Tracer.TraceInformation("post-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
@@ -317,7 +348,7 @@ namespace Granfeldt
 
         #endregion
 
-        private void CreateConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
+        private void CreateConnector(ConnectedMA ma, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-createconnector");
             Tracer.Indent();
@@ -325,6 +356,8 @@ namespace Granfeldt
             {
                 Tracer.TraceInformation("create-connector: MV: '{0}', MA: '{1}'", mventry.ObjectID, ma.Name);
                 IList<string> additionalObjectClasses = this.GetAdditionalObjectClasses(mventry, rule);
+                CSEntry csentry;
+
                 if (additionalObjectClasses.Count > 0)
                 {
                     csentry = ma.Connectors.StartNewConnector(rule.TargetObject, additionalObjectClasses.ToArray());
@@ -333,6 +366,7 @@ namespace Granfeldt
                 {
                     csentry = ma.Connectors.StartNewConnector(rule.TargetObject);
                 }
+
                 this.SetupInitialValues(ma, csentry, mventry, rule);
                 csentry.CommitNewConnector();
             }
@@ -400,7 +434,7 @@ namespace Granfeldt
                 else
                 {
                     Tracer.TraceInformation("dn-rename-required");
-                    csentry.DN = ma.CreateDN(replacedValue);
+                    csentry.DN = newdn;
                 }
             }
             catch (Exception ex)
