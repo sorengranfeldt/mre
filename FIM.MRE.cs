@@ -188,8 +188,16 @@ namespace Granfeldt
 
             try
             {
+                HashSet<string> executedMAs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (Rule rule in this.EngineRules[mventry.ObjectType])
                 {
+                    if (executedMAs.Contains(rule.TargetManagementAgentName))
+                    {
+                        // skip rule as we have already executed something for this MA and connector
+                        continue;
+                    }
+
                     Tracer.TraceInformation("start-rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName);
                     Tracer.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
                     ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
@@ -206,7 +214,8 @@ namespace Granfeldt
                                 this.CreateConnector(ma, mventry, rule);
                                 // Don't need to process any more rules
                                 // as we have just newly provisioned
-                                break;
+                                executedMAs.Add(ma.Name);
+                                continue;
                             }
                         }
                         else
@@ -236,7 +245,8 @@ namespace Granfeldt
 
                             if (hasRenamed)
                             {
-                                break;
+                                executedMAs.Add(ma.Name);
+                                continue;
                             }
                         }
                         else if (rule.Action == RuleAction.Provision)
@@ -260,7 +270,7 @@ namespace Granfeldt
 
                                 bool hasReproved = false;
 
-                                foreach (CSEntry reprovCandidate in ma.Connectors)
+                                foreach (CSEntry reprovCandidate in ma.Connectors.OfType<CSEntry>().ToList())
                                 {
                                     if (rule.Reprovision.Conditions.Met(mventry, reprovCandidate))
                                     {
@@ -274,14 +284,15 @@ namespace Granfeldt
 
                                 if (hasReproved)
                                 {
-                                    break;
+                                    executedMAs.Add(ma.Name);
+                                    continue;
                                 }
                             }
                         }
                         else if (rule.Action == RuleAction.Deprovision)
                         {
                             bool hasDeleted = false;
-                            foreach (CSEntry deprovCandidate in ma.Connectors)
+                            foreach (CSEntry deprovCandidate in ma.Connectors.OfType<CSEntry>().ToList())
                             {
                                 if (!this.ConditionsApply(deprovCandidate, mventry, rule.Conditions))
                                 {
@@ -294,12 +305,13 @@ namespace Granfeldt
 
                             if (hasDeleted)
                             {
-                                break;
+                                executedMAs.Add(ma.Name);
+                                continue;
                             }
                         }
                         else if (rule.Action == RuleAction.DeprovisionAll)
                         {
-                            foreach (CSEntry deprovCandidate in ma.Connectors)
+                            foreach (CSEntry deprovCandidate in ma.Connectors.OfType<CSEntry>().ToList())
                             {
                                 if (!this.ConditionsApply(deprovCandidate, mventry, rule.Conditions))
                                 {
