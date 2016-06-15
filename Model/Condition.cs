@@ -342,7 +342,7 @@ namespace Granfeldt
             string csValue = csentry[CSAttribute].IsPresent ? csentry[CSAttribute].Value : null;
             string mvValue = mventry[MVAttribute].IsPresent ? mventry[MVAttribute].Value : null;
 
-            if (csValue.Equals(MVAttribute))
+            if (csValue.Equals(mvValue))
             {
                 Tracer.TraceInformation("Condition failed (Reason: Values are not equal) {0}", this.Description);
                 return false;
@@ -435,7 +435,7 @@ namespace Granfeldt
             string csValue = csentry[CSAttribute].IsPresent ? csentry[CSAttribute].Value : null;
             string mvValue = mventry[MVAttribute].IsPresent ? mventry[MVAttribute].Value : null;
 
-            if (csValue != MVAttribute)
+            if (csValue != mvValue)
             {
                 Tracer.TraceInformation("Condition failed (Reason: Values are equal) {0}", this.Description);
                 return false;
