@@ -5,7 +5,7 @@ namespace Granfeldt
 {
 	public class Reprovision
 	{
-		public string ProvisionRuleId;
+		public bool ReprovisionEnabled;
 		public Conditions Conditions;
 	}
 }

@@ -253,15 +253,8 @@ namespace Granfeldt
                         {
                             // We already have a connector, so check if we need to re-provision
 
-                            if ((rule.Reprovision != null) && (rule.Reprovision.ProvisionRuleId != null))
+                            if ((rule.Reprovision != null) && (rule.Reprovision.ReprovisionEnabled))
                             {
-                                Rule reprovRule = this.EngineRules[rule.SourceObject].FirstOrDefault(r => r.RuleId.Equals(rule.Reprovision.ProvisionRuleId));
-                                if (reprovRule == null)
-                                {
-                                    Tracer.TraceError("reprovisioning-rule-not-found: id '{0}'", rule.Reprovision.ProvisionRuleId);
-                                    continue;
-                                }
-
                                 Tracer.TraceInformation("check-reprovisioning-conditions");
                                 if (rule.Reprovision.Conditions == null)
                                 {
@@ -274,10 +267,10 @@ namespace Granfeldt
                                 {
                                     if (rule.Reprovision.Conditions.Met(mventry, reprovCandidate))
                                     {
-                                        Tracer.TraceInformation("reprovisioning '{0}' using rule id '{1}'",
-                                            reprovCandidate.DN, rule.Reprovision.ProvisionRuleId);
+                                        Tracer.TraceInformation("Reprovisioning '{0}' using rule id '{1}'",
+                                            reprovCandidate.DN, rule);
                                         this.DeprovisionConnector(ma, reprovCandidate, mventry, rule);
-                                        this.CreateConnector(ma, mventry, reprovRule);
+                                        this.CreateConnector(ma, mventry, rule);
                                         hasReproved = true;
                                     }
                                 }
