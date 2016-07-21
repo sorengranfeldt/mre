@@ -428,11 +428,13 @@ namespace Granfeldt
                     Tracer.TraceInformation("escaped-cn {0}", escapedCN);
                     replacedValue = connectorRule.ConditionalRename.NewDNValue.ReplaceWithMVValueOrBlank(mventry, escapedCN);
                 }
+
                 ReferenceValue newdn = ma.CreateDN(replacedValue);
-                Tracer.TraceInformation("old-dn '{0}'", csentry.DN.ToString());
+                ReferenceValue olddn = ma.CreateDN(csentry.DN.ToString());
+                Tracer.TraceInformation("old-dn '{0}'", olddn.ToString());
                 Tracer.TraceInformation("new-dn '{0}'", newdn.ToString());
 
-                if (this.AreDNsEqual(csentry.DN, newdn, ma, connectorRule.ConditionalRename.StrictDNCompare))
+                if (this.AreDNsEqual(olddn, newdn, ma, connectorRule.ConditionalRename.StrictDNCompare))
                 {
                     Tracer.TraceInformation("no-renaming-necessary");
                 }
