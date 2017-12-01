@@ -5,7 +5,7 @@ The use of MRE can of course be combined with Declarative Provisioning using Syn
 
 By creating an XML document using a text or XML editor, FIM administrators are able to build, change or remove provisioning and deprovisioning [rules] in FIM without recompiling. Basically, MRE enables codeless provisioning in FIM and acts as a replacement or a supplement for Synchronization Rules (SR's) in FIM.
 
-To learn more, please see [documentation].
+To learn more, please see Wiki.
 
 Enjoy,
 _Søren Granfeldt_
