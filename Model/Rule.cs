@@ -2,7 +2,9 @@
 //	-fixed loading of subconditions
 //	-added backwards compatibility fixing to rule class
 //	-added new Flow class that later will replace AttributeFlowBase
-//		-will support Transforms in later versions
+//	-will support Transforms in later versions
+// september 12, 2018 | soren granfeldt
+//  - added Type and ExternalReferenceId properties to rule to enable external coded option
 
 namespace Granfeldt
 {
@@ -29,12 +31,21 @@ namespace Granfeldt
 		[XmlEnum("rename")]
 		rename
 	}
-
+    public enum RuleType
+    {
+        [XmlEnum("Default")]
+        Default,
+        [XmlEnum("External")]
+        External
+    }
 	public class Rule
 	{
 		[XmlElement]
 		public RuleAction Action { get; set; }
 		public bool Enabled = false;
+
+        public RuleType Type { get; set; }
+        public string ExternalReferenceId;
 
 		public string RuleId;
 		public string Name;

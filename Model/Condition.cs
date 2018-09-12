@@ -32,7 +32,6 @@ namespace Granfeldt
         public virtual bool Met(MVEntry mventry, CSEntry csentry)
         {
             Tracer.TraceInformation("enter-conditionsmet");
-            Tracer.Indent();
             try
             {
                 if (Operator.Equals(ConditionOperator.And))
@@ -67,7 +66,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-conditionsmet");
             }
         }
@@ -498,7 +496,6 @@ namespace Granfeldt
         public override bool Met(MVEntry mventry, CSEntry csentry)
         {
             Tracer.TraceInformation("enter-subconditionsmet");
-            Tracer.Indent();
             try
             {
                 if (Operator.Equals(ConditionOperator.And))
@@ -533,7 +530,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-subconditionsmet");
             }
         }

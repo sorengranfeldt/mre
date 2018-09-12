@@ -4,6 +4,8 @@
 //  -added options for future use of operators and/or on conditions
 // april 4, 2015 | soren granfeldt
 //	-added Trace logging to all functions
+// september 12, 2018 | soren granfeldt
+//	- added External list to rules file class
 
 namespace Granfeldt
 {
@@ -34,7 +36,6 @@ namespace Granfeldt
 			}
 			finally
 			{
-				Tracer.Unindent();
 				Tracer.TraceInformation("exit-loadsettingsfromfile");
 			}
 		}
@@ -55,7 +56,6 @@ namespace Granfeldt
 			}
 			finally
 			{
-				Tracer.Unindent();
 				Tracer.TraceInformation("exit-saverulesconfigurationfile");
 			}
 		}
@@ -65,10 +65,12 @@ namespace Granfeldt
 
 	public class RulesFile
 	{
+        public List<External> Externals;
 		public List<Rule> Rules;
 		public RulesFile()
 		{
-			this.Rules = new List<Rule>();
+            this.Externals = new List<External>();
+            this.Rules = new List<Rule>();
 		}
 	}
 

@@ -36,7 +36,6 @@ namespace Granfeldt
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-attributeflowconcatenate");
-            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
@@ -95,7 +94,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-attributeflowconcatenate");
             }
         }
@@ -109,7 +107,6 @@ namespace Granfeldt
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-attributeflowconstant");
-            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
@@ -142,7 +139,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-attributeflowconstant");
             }
         }
@@ -158,7 +154,6 @@ namespace Granfeldt
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-attributeflowmultivaluedconstant");
-            Tracer.Indent();
 
             if (Target.Equals("[DN]", StringComparison.OrdinalIgnoreCase))
             {
@@ -204,7 +199,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-attributeflowmutlivaluedconstant");
             }
         }
@@ -216,7 +210,6 @@ namespace Granfeldt
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-attributeflowguid");
-            Tracer.Indent();
             base.Generate(ma, csentry, mventry, rule);
             try
             {
@@ -235,7 +228,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-attributeflowguid");
             }
         }
@@ -253,7 +245,6 @@ namespace Granfeldt
         public override void Generate(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-attributeflowattribute");
-            Tracer.Indent();
 
             bool sourceIsMVObjectID = this.Source.Equals("[mvobjectid]", StringComparison.OrdinalIgnoreCase);
             bool targetIsDN = this.Target.Equals("[dn]", StringComparison.OrdinalIgnoreCase);
@@ -338,7 +329,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-attributeflowattribute");
             }
         }

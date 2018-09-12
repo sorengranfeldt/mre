@@ -48,6 +48,9 @@
 // october 12, 2015 | soren granfeldt | 1.0.8.0
 //	- removed support for disabling all rules
 //	- added helper class for calculating initial flow values, like reusing guid and such. to be extended in later versions
+// october 12, 2015 | soren granfeldt | 1.0.8.0
+//  - added support for externals
+//  - removed Indent / Unident
 
 namespace Granfeldt
 {
@@ -68,15 +71,13 @@ namespace Granfeldt
         string ruleFilesPath = Utils.ExtensionsDirectory;
 
         private Dictionary<string, List<Rule>> EngineRules;
+        private Dictionary<string, External> Externals;
 
         #region IMVSynchronization Methods
 
         public void Initialize()
         {
-            Tracer.IndentLevel = 0;
             Tracer.TraceInformation("enter-initialize");
-            Tracer.Indent();
-
             try
             {
                 System.Reflection.Assembly assembly = System.Reflection.Assembly.GetExecutingAssembly();
@@ -125,8 +126,9 @@ namespace Granfeldt
 #endif
                 Tracer.TraceInformation("loading-rule-files-from '{0}'", ruleFilesPath);
                 this.EngineRules = new Dictionary<string, List<Rule>>();
+                this.Externals = new Dictionary<string, External>();
 
-                string[] ruleFiles = Directory.GetFiles(ruleFilesPath, "*fim.mre.xml", SearchOption.AllDirectories);
+                string[] ruleFiles = Directory.GetFiles(ruleFilesPath, "*.mre.xml", SearchOption.AllDirectories);
                 foreach (string ruleFile in ruleFiles)
                 {
                     RulesFile rules = new RulesFile();
@@ -159,6 +161,32 @@ namespace Granfeldt
 
                         this.EngineRules[rule.SourceObject].Add(rule);
                     }
+
+                    // handle loading externals
+                    foreach (External e in rules.Externals)
+                    {
+                        if (string.IsNullOrEmpty(e.ReferenceId))
+                        {
+                            Tracer.TraceWarning("skipping-external-without-referenceid-value");
+                            continue;
+                        }
+                        if (!this.Externals.ContainsKey(e.ReferenceId))
+                        {
+                            Tracer.TraceInformation("external referenceid: {0}, type: {1}, filename: {2}", e.ReferenceId, e.Type, e.Filename);
+                            e.EnsureFullFilename(ruleFilesPath);
+                            e.LoadExternalAssembly();
+                            this.Externals.Add(e.ReferenceId, e);
+                            foreach (External i in Externals?.Values)
+                            {
+                                i.Initialize();
+                            }
+                        }
+                        else
+                        {
+                            Tracer.TraceError("cannot-add-duplicate-external-referenceid-value {0}", e.ReferenceId);
+                        }
+                    }
+
                 }
 
                 if (this.EngineRules.Count == 0)
@@ -171,15 +199,34 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-initialize");
+            }
+        }
+        void InvokeExternalMethod(string ExternalReferenceId, ExternalType Type, MVEntry mventry, CSEntry csentry)
+        {
+            if (!string.IsNullOrEmpty(ExternalReferenceId) && Externals.ContainsKey(ExternalReferenceId))
+            {
+                External external = Externals[ExternalReferenceId];
+                if (external != null)
+                {
+                    if (Type == ExternalType.Provision)
+                    {
+                        external.Provision(mventry);
+                    }
+                    else if (Type == ExternalType.ShouldDeleteFromMV)
+                    {
+                        external.ShouldDeleteFromMV(csentry, mventry);
+                    }
+                }
+                else
+                {
+                    Tracer.TraceWarning("no-external-reference-found-for-referenceid {0}", ExternalReferenceId);
+                }
             }
         }
         public void Provision(MVEntry mventry)
         {
-            Tracer.IndentLevel = 0;
             Tracer.TraceInformation("enter-provision");
-            Tracer.Indent();
 
             if (!this.EngineRules.ContainsKey(mventry.ObjectType))
             {
@@ -198,7 +245,7 @@ namespace Granfeldt
                         continue;
                     }
 
-                    Tracer.TraceInformation("start-rule '{0}' (MA {1})", rule.Name, rule.TargetManagementAgentName);
+                    Tracer.TraceInformation("start-rule '{0}' (MA: {1}, type: {2}, reference: {3})", rule.Name, rule.TargetManagementAgentName, rule.Type, rule.ExternalReferenceId);
                     Tracer.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
                     ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
 
@@ -211,7 +258,14 @@ namespace Granfeldt
                         {
                             if (this.ConditionsApply(null, mventry, rule.Conditions))
                             {
-                                this.CreateConnector(ma, mventry, rule);
+                                if (rule.Type == RuleType.Default)
+                                {
+                                    this.CreateConnector(ma, mventry, rule);
+                                }
+                                else if (rule.Type == RuleType.External)
+                                {
+                                    InvokeExternalMethod(rule.ExternalReferenceId, ExternalType.Provision, mventry, null);
+                                }
                                 // Don't need to process any more rules
                                 // as we have just newly provisioned
                                 executedMAs.Add(ma.Name);
@@ -238,7 +292,14 @@ namespace Granfeldt
                             {
                                 if (this.ConditionsApply(renameCandidate, mventry, rule.ConditionalRename.Conditions))
                                 {
-                                    this.ConditionalRenameConnector(ma, renameCandidate, mventry, rule);
+                                    if (rule.Type == RuleType.Default)
+                                    {
+                                        this.ConditionalRenameConnector(ma, renameCandidate, mventry, rule);
+                                    }
+                                    else if (rule.Type == RuleType.External)
+                                    {
+                                        InvokeExternalMethod(rule.ExternalReferenceId, ExternalType.Provision, mventry, null);
+                                    }
                                     hasRenamed = true;
                                 }
                             }
@@ -267,10 +328,16 @@ namespace Granfeldt
                                 {
                                     if (rule.Reprovision.Conditions.Met(mventry, reprovCandidate))
                                     {
-                                        Tracer.TraceInformation("Reprovisioning '{0}' using rule id '{1}'",
-                                            reprovCandidate.DN, rule);
-                                        this.DeprovisionConnector(ma, reprovCandidate, mventry, rule);
-                                        this.CreateConnector(ma, mventry, rule);
+                                        if (rule.Type == RuleType.Default)
+                                        {
+                                            Tracer.TraceInformation("Reprovisioning '{0}' using rule id '{1}'", reprovCandidate.DN, rule);
+                                            this.DeprovisionConnector(ma, reprovCandidate, mventry, rule);
+                                            this.CreateConnector(ma, mventry, rule);
+                                        }
+                                        else if (rule.Type == RuleType.External)
+                                        {
+                                            InvokeExternalMethod(rule.ExternalReferenceId, ExternalType.Provision, mventry, null);
+                                        }
                                         hasReproved = true;
                                     }
                                 }
@@ -292,7 +359,14 @@ namespace Granfeldt
                                     continue;
                                 }
 
-                                this.DeprovisionConnector(ma, deprovCandidate, mventry, rule);
+                                if (rule.Type == RuleType.Default)
+                                {
+                                    this.DeprovisionConnector(ma, deprovCandidate, mventry, rule);
+                                }
+                                else if (rule.Type == RuleType.External)
+                                {
+                                    InvokeExternalMethod(rule.ExternalReferenceId, ExternalType.Provision, mventry, null);
+                                }
                                 hasDeleted = true;
                             }
 
@@ -310,8 +384,14 @@ namespace Granfeldt
                                 {
                                     continue;
                                 }
-
-                                mventry.ConnectedMAs.DeprovisionAll();
+                                if (rule.Type == RuleType.Default)
+                                {
+                                    mventry.ConnectedMAs.DeprovisionAll();
+                                }
+                                else if (rule.Type == RuleType.External)
+                                {
+                                    InvokeExternalMethod(rule.ExternalReferenceId, ExternalType.Provision, mventry, null);
+                                }
                                 break;
                             }
                         }
@@ -331,7 +411,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-provision");
             }
         }
@@ -342,12 +421,14 @@ namespace Granfeldt
         public void Terminate()
         {
             Tracer.TraceInformation("enter-terminate");
-            Tracer.Indent();
+            foreach (External e in Externals?.Values)
+            {
+                e.Terminate();
+            }
             this.EngineRules = null;
             Tracer.TraceInformation("pre-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
             GC.Collect();
             Tracer.TraceInformation("post-gc-allocated-memory '{0:n}'", GC.GetTotalMemory(true) / 1024M);
-            Tracer.Unindent();
             Tracer.TraceInformation("exit-terminate");
         }
 
@@ -356,7 +437,6 @@ namespace Granfeldt
         private void CreateConnector(ConnectedMA ma, MVEntry mventry, Rule rule)
         {
             Tracer.TraceInformation("enter-createconnector");
-            Tracer.Indent();
             try
             {
                 Tracer.TraceInformation("create-connector: MV: '{0}', MA: '{1}'", mventry.ObjectID, ma.Name);
@@ -382,14 +462,12 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-createconnector");
             }
         }
         private void DeprovisionConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             Tracer.TraceInformation("enter-deprovisionconnector");
-            Tracer.Indent();
             try
             {
                 Tracer.TraceInformation("deprovision-connector: DN: '{0}', MA: '{1}'", csentry.DN, csentry.MA.Name);
@@ -402,14 +480,12 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-deprovisionconnector");
             }
         }
         private void ConditionalRenameConnector(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             Tracer.TraceInformation("enter-conditionalrenameconnector");
-            Tracer.Indent();
             try
             {
                 if (connectorRule.ConditionalRename == null)
@@ -451,14 +527,12 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-conditionalrenameconnector");
             }
         }
         private bool ConditionsApply(CSEntry csentry, MVEntry mventry, Conditions conditions)
         {
             Tracer.TraceInformation("enter-conditionsapply");
-            Tracer.Indent();
             try
             {
                 if (conditions == null || conditions.ConditionBase.Count == 0)
@@ -475,14 +549,12 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-conditionsapply");
             }
         }
         private IList<string> GetAdditionalObjectClasses(MVEntry mventry, Rule connectorRule)
         {
             Tracer.TraceInformation("enter-getadditionalobjectclasses");
-            Tracer.Indent();
             List<string> valuesToAdd = new List<string>();
             try
             {
@@ -515,7 +587,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-getadditionalobjectclasses");
             }
             return valuesToAdd;
@@ -523,7 +594,6 @@ namespace Granfeldt
         private void SetupInitialValues(ConnectedMA ma, CSEntry csentry, MVEntry mventry, Rule connectorRule)
         {
             Tracer.TraceInformation("enter-setupinitialvalues");
-            Tracer.Indent();
             try
             {
                 if (connectorRule.Helpers != null)
@@ -546,7 +616,6 @@ namespace Granfeldt
             }
             finally
             {
-                Tracer.Unindent();
                 Tracer.TraceInformation("exit-setupinitialvalues");
             }
         }

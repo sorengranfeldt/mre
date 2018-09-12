@@ -1,49 +1,84 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <RulesFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-	<Rules>
-		<Rule>
-			<RuleId>1</RuleId>
-			<Name>person ==> upd-sql</Name>
-			<Description></Description>
-			<TargetManagementAgentName>upd-sql</TargetManagementAgentName>
-			<Enabled>true</Enabled>
-			<SourceObject>person</SourceObject>
-			<TargetObject>person</TargetObject>
-			<Action>provision</Action>
 
-			<Helpers>
-				<ScopedGuid Name="DNGuid"></ScopedGuid>
-			</Helpers>
+  <Externals>
+    <External>
+      <ReferenceId>LegacyProvision</ReferenceId>
+      <Type>Provision</Type>
+      <Filename>mvextensiontest.dll</Filename>
+    </External>
+    <External>
+      <ReferenceId>LegacyDelete</ReferenceId>
+      <Type>ShouldDeleteFromMV</Type>
+      <Filename>mvextensiontest.dll</Filename>
+    </External>
+  </Externals>
 
-			<Reprovision/>
-			<Conditions Operator="And">
-				<ConditionBase xsi:type="ConditionIsPresent">
-					<Description>accountName must be present</Description>
-					<MVAttribute>accountName</MVAttribute>
-				</ConditionBase>
-				
-				<ConditionBase xsi:type="ConditionConnectedTo">
-					<ManagementAgentName>hr</ManagementAgentName>
-				</ConditionBase>
+  <Rules>
+    <Rule>
+      <Name>Test Code</Name>
+      <Action>Provision</Action>
+      <Type>External</Type>
+      <ExternalReferenceId>LegacyProvision</ExternalReferenceId>
+      <TargetManagementAgentName>upd-sql</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>person</SourceObject>
+      <TargetObject>person</TargetObject>
+    </Rule>
+    <Rule>
+      <RuleId>1</RuleId>
+      <Name>person ==> upd-sql</Name>
+      <Description></Description>
+      <TargetManagementAgentName>upd-sql</TargetManagementAgentName>
+      <Enabled>true</Enabled>
+      <SourceObject>person</SourceObject>
+      <TargetObject>person</TargetObject>
+      <Action>Provision</Action>
 
-			</Conditions>
-			<InitialFlows>
-				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
-					<Source>accountName</Source>
-					<Target>accountname</Target>
-				</AttributeFlowBase>
- 				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
-					<Source>[MVObjectID]</Source>
-					<Target>_id</Target>
-				</AttributeFlowBase>
- 				<AttributeFlowBase xsi:type="AttributeFlowAttribute">
-					<Source>[MVObjectID]</Source>
-					<Target>[DN]</Target>
-				</AttributeFlowBase>
+      <Helpers>
+        <ScopedGuid Name="DNGuid"></ScopedGuid>
+      </Helpers>
 
-			</InitialFlows>
-			
-		</Rule>
+      <Reprovision/>
+      <Conditions Operator="And">
+        <ConditionBase xsi:type="ConditionIsPresent">
+          <Description>accountName must be present</Description>
+          <MVAttribute>accountName</MVAttribute>
+        </ConditionBase>
 
-	</Rules>
+        <ConditionBase xsi:type="ConditionIsFalse">
+          <Description>isExpelled must be present and false</Description>
+          <MVAttribute>isExpelled</MVAttribute>
+        </ConditionBase>
+
+        <ConditionBase xsi:type="ConditionBetween">
+          <Description>now must be between startdate and enddate</Description>
+          <MVAttributeStartDate>employeeStartDate</MVAttributeStartDate>
+          <MVAttributeEndDate>employeeEndDate</MVAttributeEndDate>
+        </ConditionBase>
+
+        <ConditionBase xsi:type="ConditionConnectedTo">
+          <ManagementAgentName>hr</ManagementAgentName>
+        </ConditionBase>
+
+      </Conditions>
+      <InitialFlows>
+        <AttributeFlowBase xsi:type="AttributeFlowAttribute">
+          <Source>accountName</Source>
+          <Target>accountname</Target>
+        </AttributeFlowBase>
+        <AttributeFlowBase xsi:type="AttributeFlowAttribute">
+          <Source>[MVObjectID]</Source>
+          <Target>_id</Target>
+        </AttributeFlowBase>
+        <AttributeFlowBase xsi:type="AttributeFlowAttribute">
+          <Source>[MVObjectID]</Source>
+          <Target>[DN]</Target>
+        </AttributeFlowBase>
+
+      </InitialFlows>
+
+    </Rule>
+
+  </Rules>
 </RulesFile>
