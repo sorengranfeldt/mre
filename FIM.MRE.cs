@@ -18,29 +18,29 @@
 //  - added conditional-rename rule
 //  - added new conditions (IsPresent and IsNotPresent)
 //  - added suggestions from Niels Rossen
-//      - convert binary to string using BitConverter and additional error handling around existing connectors
+//  - convert binary to string using BitConverter and additional error handling around existing connectors
 // september 15, 2014 | soren granfeldt
 //  - added options for escaping DN components in initial flows (AttributeFlowConstant) on provision and rename (documentation pending)
 //  - optimized rule selection and filtering for added performance (using Linq namespace)
 //  - optimized some logging text
 // february 19, 2015 | soren granfeldt
-//  -added loading of separate rules files
-//  -removing disabled rules right after load for faster processing with many rules
+//  - added loading of separate rules files
+//  - removing disabled rules right after load for faster processing with many rules
 // february 24, 2015 | ryan newington
-//  -added support for specifying additional object classes in provisioning rules
+//  - added support for specifying additional object classes in provisioning rules
 // february 27, 2015 | soren granfeldt
-//  -added tracesource and removed old logging function
+//  - added tracesource and removed old logging function
 // march 10, 2015 | soren granfeldt
-//  -marked RenameDnFlow as obsolete
-//  -moved condition logic to the classes
+//  - marked RenameDnFlow as obsolete
+//  - moved condition logic to the classes
 // march 11, 2015 | ryan newington
 //  - updated registry key logic
 // april 4, 2015 | soren granfeldt
-//	-added Trace logging to all functions
-//	-added logging to eventlog for errors and warning
+//	- added Trace logging to all functions
+//	- added logging to eventlog for errors and warning
 // may 1, 2015 | soren granfeldt
-//	-moved all initial flow logic to the classes and simplified SetupInitialValues
-//	-removed old Rename code and moved reprovision code to ConditionalRename
+//	- moved all initial flow logic to the classes and simplified SetupInitialValues
+//	- removed old Rename code and moved reprovision code to ConditionalRename
 // september 1, 2015 | ryan newington | 1.0.7.0
 //  - modified the DN comparison logic in rename connector to support comparing DNs as DNs rather than strings
 //  - added support for forcing the old style of DN string-based comparison
@@ -51,6 +51,10 @@
 // october 12, 2015 | soren granfeldt | 1.0.8.0
 //  - added support for externals
 //  - removed Indent / Unident
+// september 12, 2018 | soren granfeldt | 1.2.5.0
+//  - added support for externals
+// september 12, 2018 | soren granfeldt | 1.2.5.0
+//  - fixed bug where tracing was depending on attribute displayName being bound to all object types
 
 namespace Granfeldt
 {
@@ -246,7 +250,8 @@ namespace Granfeldt
                     }
 
                     Tracer.TraceInformation("start-rule '{0}' (MA: {1}, type: {2}, reference: {3})", rule.Name, rule.TargetManagementAgentName, rule.Type, rule.ExternalReferenceId);
-                    Tracer.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
+                    //Tracer.TraceInformation("{0}, displayname: {1}, mvguid: {2}", mventry.ObjectType, mventry["displayName"].IsPresent ? mventry["displayName"].Value : "n/a", mventry.ObjectID);
+                    Tracer.TraceInformation("{0}, mvguid: {1}", mventry.ObjectType, mventry.ObjectID);
                     ConnectedMA ma = mventry.ConnectedMAs[rule.TargetManagementAgentName];
 
                     if (ma.Connectors.Count == 0)
