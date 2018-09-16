@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("FIM Metaverse Rules Extension")]
+[assembly: AssemblyTitle("FIM/MIM Metaverse Rules Extension")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Goverco")]
-[assembly: AssemblyProduct("FIM Metaverse Rules Extension")]
+[assembly: AssemblyProduct("FIM/MIM Metaverse Rules Extension")]
 [assembly: AssemblyCopyright("Copyright © Soren Granfeldt 2012-2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
@@ -29,5 +29,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.2.5.1")]
-[assembly: AssemblyFileVersion("1.2.5.1")]
+[assembly: AssemblyVersion("1.2.5.2")]
+[assembly: AssemblyFileVersion("1.2.5.2")]

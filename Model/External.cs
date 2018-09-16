@@ -1,5 +1,7 @@
 ﻿// september 12, 2018 | soren granfeldt
 //	-initial version
+// september 16, 2018 | soren granfeldt
+//	-optimized type detection in LoadExternalAssembly by recommendation from Ryan Newington
 
 using Microsoft.MetadirectoryServices;
 using System;
@@ -54,7 +56,7 @@ namespace Granfeldt
                     Tracer.TraceInformation("loading-loadexternalassembly {0}", Path.Combine(Utils.ExtensionsDirectory, this.FilenameFull));
                     this.Assembly = Assembly.LoadFile(FilenameFull);
                     Type[] types = Assembly.GetExportedTypes();
-                    Type type = types.Where(u => u.GetInterface("Microsoft.MetadirectoryServices.IMVSynchronization") != null).FirstOrDefault();
+                    Type type = types.FirstOrDefault(u => u.GetInterface("Microsoft.MetadirectoryServices.IMVSynchronization") != null);
                     if (type != null)
                     {
                         instance = Activator.CreateInstance(type) as IMVSynchronization;
