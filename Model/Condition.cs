@@ -8,6 +8,7 @@ namespace Granfeldt
     using System.Collections.Generic;
     using System.Text.RegularExpressions;
     using System.Xml.Serialization;
+    using System.Linq;
 
     public enum ConditionOperator
     {
@@ -29,6 +30,13 @@ namespace Granfeldt
         {
             this.ConditionBase = new List<ConditionBase>();
         }
+
+        /// <summary>
+        /// Evaluates true if the conditions are met for the given inputs.
+        /// </summary>
+        /// <param name="mventry">Metaverse operand</param>
+        /// <param name="csentry">Connectorspace operand</param>
+        /// <returns></returns>
         public virtual bool Met(MVEntry mventry, CSEntry csentry)
         {
             Tracer.TraceInformation("enter-conditionsmet");
@@ -79,6 +87,7 @@ namespace Granfeldt
     XmlInclude(typeof(ConditionIsPresent)), XmlInclude(typeof(ConditionIsNotPresent)),
     XmlInclude(typeof(ConditionAreEqual)), XmlInclude(typeof(ConditionAreNotEqual)),
     XmlInclude(typeof(ConditionIsTrue)), XmlInclude(typeof(ConditionIsFalse)),
+    XmlInclude(typeof(ConditionContains)),
     XmlInclude(typeof(ConditionIsNotTrue)),
     XmlInclude(typeof(ConditionIsDNEqual)),
     XmlInclude(typeof(ConditionIsDNNotEqual)),
@@ -288,6 +297,33 @@ namespace Granfeldt
             return true;
         }
     }
+
+    public class ConditionContains : ConditionBase
+    {
+        public string MVAttribute;
+        public string Pattern;
+
+        public override bool Met(MVEntry mventry, CSEntry csentry)
+        {
+            if (!mventry[this.MVAttribute].IsPresent)
+            {
+                Tracer.TraceInformation("Condition failed (Reason: No metaverse value is present) {0}", this.Description);
+                return false;
+            }
+
+            if (mventry[this.MVAttribute].Values?.Count > 0)
+            {
+                var entries = mventry[this.MVAttribute].Values.Cast<string>();
+                return entries.Any(x => String.Equals(x, Pattern, StringComparison.CurrentCultureIgnoreCase));
+            }
+            else
+            {
+                Tracer.TraceInformation("Condition failed (Reason: Metaverse multivalue contains no elements) {0}", this.Description);
+                return false;
+            }
+        }
+    }
+
     public class ConditionIsFalse : ConditionBase
     {
         public string MVAttribute;
