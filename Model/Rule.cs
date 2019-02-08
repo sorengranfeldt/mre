@@ -64,7 +64,8 @@ namespace Granfeldt
 
 		[XmlArrayItem("Constant", Type = typeof(HelperValueConstant))]
 		[XmlArrayItem("ScopedGuid", Type = typeof(HelperValueScopedGuid))]
-		public List<HelperValue> Helpers;
+        [XmlArrayItem("RandomPassword", Type = typeof(HelperValueRandomPassword))]
+        public List<HelperValue> Helpers;
 
 		public string SourceObject;
 		public string TargetManagementAgentName;
