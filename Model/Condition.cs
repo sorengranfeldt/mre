@@ -87,7 +87,7 @@ namespace Granfeldt
     XmlInclude(typeof(ConditionIsPresent)), XmlInclude(typeof(ConditionIsNotPresent)),
     XmlInclude(typeof(ConditionAreEqual)), XmlInclude(typeof(ConditionAreNotEqual)),
     XmlInclude(typeof(ConditionIsTrue)), XmlInclude(typeof(ConditionIsFalse)),
-    XmlInclude(typeof(ConditionContains)),
+    XmlInclude(typeof(ConditionContains)), XmlInclude(typeof(ConditionNotContains)),
     XmlInclude(typeof(ConditionIsNotTrue)),
     XmlInclude(typeof(ConditionIsDNEqual)),
     XmlInclude(typeof(ConditionIsDNNotEqual)),
@@ -325,6 +325,14 @@ namespace Granfeldt
                 Tracer.TraceInformation("Condition failed (Reason: Metaverse multivalue contains no elements) {0}", this.Description);
                 return false;
             }
+        }
+    }
+
+    public class ConditionNotContains : ConditionContains
+    {
+        public override bool Met(MVEntry mventry, CSEntry csentry)
+        {
+            return !base.Met(mventry, csentry);
         }
     }
 
