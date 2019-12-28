@@ -70,8 +70,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.MetadirectoryServicesEx">
-      <HintPath>..\sqlma\Granfeldt.SQL.MA\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-      <Private>False</Private>
+      <HintPath>.\Microsoft.MetadirectoryServicesEx.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualBasic">
       <Name>Microsoft.VisualBasic</Name>

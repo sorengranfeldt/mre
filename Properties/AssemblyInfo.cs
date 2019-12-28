@@ -1,5 +1,4 @@
 ﻿using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following 
@@ -10,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Goverco")]
 [assembly: AssemblyProduct("FIM/MIM Metaverse Rules Extension")]
-[assembly: AssemblyCopyright("Copyright © Soren Granfeldt 2012-2018")]
+[assembly: AssemblyCopyright("Copyright © Soren Granfeldt 2012-2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -29,5 +28,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.2.5.2")]
-[assembly: AssemblyFileVersion("1.2.5.2")]
+[assembly: AssemblyVersion("1.2.5.6")]
+[assembly: AssemblyFileVersion("1.2.5.6")]

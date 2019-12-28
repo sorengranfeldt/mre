@@ -308,7 +308,7 @@ namespace Granfeldt
                         this.FlowBooleanAttribute(csentry, mventry, targetIsDN, targetType);
                         break;
 
-                    case AttributeType.Undefined:
+                    //case AttributeType.Undefined:
                     default:
                         break;
                 }
@@ -407,7 +407,7 @@ namespace Granfeldt
                     break;
 
                 case AttributeType.Reference:
-                case AttributeType.Undefined:
+                //case AttributeType.Undefined:
                 default:
 
                     throw new InvalidOperationException(string.Format("Cannot convert string source value to target type {0}", targetType));
@@ -585,7 +585,7 @@ namespace Granfeldt
                     break;
 
                 case AttributeType.Integer:
-                case AttributeType.Undefined:
+                //case AttributeType.Undefined:
                 case AttributeType.Boolean:
                 case AttributeType.Reference:
                 default:
