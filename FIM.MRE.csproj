@@ -84,6 +84,34 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="FIM.MRE.cs" />
+    <Compile Include="Model\Condition\ConditionBefore.cs" />
+    <Compile Include="Model\Condition\ConditionBitIsNotSet.cs" />
+    <Compile Include="Model\Condition\ConditionIsFalse.cs" />
+    <Compile Include="Model\Condition\ConditionIsNotTrue.cs" />
+    <Compile Include="Model\Condition\ConditionBetween.cs" />
+    <Compile Include="Model\Condition\ConditionAfter.cs" />
+    <Compile Include="Model\Condition\ConditionIsNotPresent.cs" />
+    <Compile Include="Model\Condition\ConditionContains.cs" />
+    <Compile Include="Model\Condition\ConditionAreEqual.cs" />
+    <Compile Include="Model\Condition\ConditionIsDNEqual.cs" />
+    <Compile Include="Model\Condition\ConditionIsDNNotEqual.cs" />
+    <Compile Include="Model\Condition\ConditionAreNotEqual.cs" />
+    <Compile Include="Model\Condition\ConditionConnectedTo.cs" />
+    <Compile Include="Model\Flow\AttributeFlowAttribute.cs" />
+    <Compile Include="Model\Flow\AttributeFlowGuid.cs" />
+    <Compile Include="Model\Flow\AttributeFlowMultivaluedConstant.cs" />
+    <Compile Include="Model\Flow\AttributeFlowConstant.cs" />
+    <Compile Include="Model\Flow\AttributeFlowConcatenate.cs" />
+    <Compile Include="Model\Condition\SubCondition.cs" />
+    <Compile Include="Model\Condition\Obsolete\ConditionAttributeIsNotPresent.cs" />
+    <Compile Include="Model\Condition\Obsolete\ConditionAttributeIsPresent.cs" />
+    <Compile Include="Model\Condition\ConditionNotConnectedTo.cs" />
+    <Compile Include="Model\Condition\ConditionNotContains.cs" />
+    <Compile Include="Model\Condition\ConditionNotMatch.cs" />
+    <Compile Include="Model\Condition\ConditionMatch.cs" />
+    <Compile Include="Model\Condition\ConditionIsPresent.cs" />
+    <Compile Include="Model\Condition\ConditionIsTrue.cs" />
+    <Compile Include="Model\Condition\ConditionBitIsSet.cs" />
     <Compile Include="Model\Flow.cs" />
     <Compile Include="Model\Condition.cs" />
     <Compile Include="Model\Helpers.cs" />

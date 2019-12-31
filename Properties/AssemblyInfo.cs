@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Goverco")]
 [assembly: AssemblyProduct("FIM/MIM Metaverse Rules Extension")]
-[assembly: AssemblyCopyright("Copyright © Soren Granfeldt 2012-2019")]
+[assembly: AssemblyCopyright("Copyright © Soren Granfeldt 2012-2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -28,5 +28,5 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("1.2.5.6")]
-[assembly: AssemblyFileVersion("1.2.5.6")]
+[assembly: AssemblyVersion("1.2.5.7")]
+[assembly: AssemblyFileVersion("1.2.5.7")]
