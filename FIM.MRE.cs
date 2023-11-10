@@ -126,7 +126,7 @@ namespace Granfeldt
 #if DEBUG
                 // for debugging, we use current path
                 if (ruleFilesPath == Utils.ExtensionsDirectory)
-                    ruleFilesPath = Directory.GetCurrentDirectory();
+                    // ruleFilesPath = Directory.GetCurrentDirectory(); //Need to debug without this line executing.
 #endif
                 Tracer.TraceInformation("loading-rule-files-from '{0}'", ruleFilesPath);
                 this.EngineRules = new Dictionary<string, List<Rule>>();
